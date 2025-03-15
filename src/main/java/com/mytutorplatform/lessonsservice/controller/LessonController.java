@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/lessons")
+@RequestMapping("/api/lessons")
 @SuppressWarnings("unused")
 public class LessonController {
 

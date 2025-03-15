@@ -1,4 +1,4 @@
-package com.mytutorplatform.lessonsservice.application;
+package com.mytutorplatform.lessonsservice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
