@@ -1,27 +1,31 @@
 package com.mytutorplatform.lessonsservice.service;
 
+import com.mytutorplatform.lessonsservice.mapper.LessonsMapper;
 import com.mytutorplatform.lessonsservice.model.Lesson;
 import com.mytutorplatform.lessonsservice.model.LessonStatus;
+import com.mytutorplatform.lessonsservice.model.request.CreateLessonRequest;
+import com.mytutorplatform.lessonsservice.model.request.UpdateLessonRequest;
 import com.mytutorplatform.lessonsservice.repository.LessonRepository;
 import com.mytutorplatform.lessonsservice.validation.LessonValidator;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class LessonService {
 
-    @Autowired
-    private LessonRepository lessonRepository;
+    private final LessonRepository lessonRepository;
+    private final LessonValidator lessonValidator;
+    private final LessonsMapper lessonsMapper;
 
-    @Autowired
-    private LessonValidator lessonValidator;
+    public Lesson createLesson(CreateLessonRequest createLessonRequest) {
+        lessonValidator.validateCreate(createLessonRequest);
 
-    public Lesson createLesson(Lesson lesson) {
-        lessonValidator.validateLesson(lesson);
+        Lesson lesson = lessonsMapper.map(createLessonRequest);
 
         return lessonRepository.save(lesson);
     }
@@ -34,19 +38,16 @@ public class LessonService {
         return lessonRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Lesson not found"));
     }
 
-    public Lesson updateLesson(UUID id, Lesson updatedLesson) {
-        lessonValidator.validateLesson(updatedLesson);
-
+    public Lesson updateLesson(UUID id, UpdateLessonRequest updateLessonRequest) {
         Lesson existingLesson = getLessonById(id);
+
+        lessonValidator.validateUpdate(existingLesson, updateLessonRequest);
 
         if (existingLesson.getStatus() == LessonStatus.COMPLETED) {
             throw new IllegalStateException("Cannot update a completed lesson");
         }
 
-        existingLesson.setTitle(updatedLesson.getTitle());
-        existingLesson.setDateTime(updatedLesson.getDateTime());
-        existingLesson.setStatus(updatedLesson.getStatus());
-        existingLesson.setPrice(updatedLesson.getPrice());
+        lessonsMapper.update(existingLesson, updateLessonRequest);
         return lessonRepository.save(existingLesson);
     }
 

@@ -1,5 +1,7 @@
 package com.mytutorplatform.lessonsservice.controller;
 
+import com.mytutorplatform.lessonsservice.model.request.CreateLessonRequest;
+import com.mytutorplatform.lessonsservice.model.request.UpdateLessonRequest;
 import com.mytutorplatform.lessonsservice.service.LessonService;
 import com.mytutorplatform.lessonsservice.model.Lesson;
 import org.springframework.http.ResponseEntity;
@@ -20,8 +22,8 @@ public class LessonController {
     }
 
     @PostMapping
-    public ResponseEntity<Lesson> createLesson(@RequestBody Lesson lesson) {
-        return ResponseEntity.ok(lessonService.createLesson(lesson));
+    public ResponseEntity<Lesson> createLesson(@RequestBody CreateLessonRequest createLessonRequest) {
+        return ResponseEntity.ok(lessonService.createLesson(createLessonRequest));
     }
 
     @GetMapping
@@ -34,21 +36,14 @@ public class LessonController {
         return ResponseEntity.ok(lessonService.getLessonById(id));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Lesson> updateLesson(@PathVariable UUID id, @RequestBody Lesson lesson) {
-        return ResponseEntity.ok(lessonService.updateLesson(id, lesson));
+    @PatchMapping("/{id}")
+    public ResponseEntity<Lesson> updateLesson(@PathVariable UUID id, @RequestBody UpdateLessonRequest updateLessonRequest) {
+        return ResponseEntity.ok(lessonService.updateLesson(id, updateLessonRequest));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteLesson(@PathVariable UUID id) {
         lessonService.deleteLesson(id);
         return ResponseEntity.noContent().build();
-    }
-
-    @PutMapping("/{id}/enroll")
-    public ResponseEntity<Lesson> enrollStudent(@PathVariable UUID id, @RequestParam UUID studentId) {
-        Lesson lesson = lessonService.getLessonById(id);
-        lesson.setStudentId(studentId);
-        return ResponseEntity.ok(lessonService.updateLesson(id, lesson));
     }
 }
