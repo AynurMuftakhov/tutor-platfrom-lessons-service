@@ -47,6 +47,8 @@ public class Lesson {
 
     private String studentPerformance;
 
+    private String homework;
+
     @Enumerated(EnumType.STRING)
     private LessonSatisfaction lessonSatisfaction;
 

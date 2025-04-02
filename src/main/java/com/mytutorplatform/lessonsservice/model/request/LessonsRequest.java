@@ -9,7 +9,7 @@ import java.util.UUID;
 public class LessonsRequest {
     private String title;
     private OffsetDateTime dateTime;
-    private int duration;
+    private Integer duration;
     private UUID studentId;
     private String location;
     private String lessonPlan;

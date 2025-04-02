@@ -16,4 +16,5 @@ public class UpdateLessonRequest extends LessonsRequest {
     private String studentPerformance;
     private LessonSatisfaction lessonSatisfaction;
     private List<LessonAttachment> attachments;
+    private String homework;
 }

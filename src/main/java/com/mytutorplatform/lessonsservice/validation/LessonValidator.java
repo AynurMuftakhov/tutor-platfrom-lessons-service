@@ -23,23 +23,27 @@ public class LessonValidator {
         validateConflicts(createLessonRequest.getTutorId(), null, createLessonRequest);
     }
 
-    public void validateUpdate(Lesson existingLesson, UpdateLessonRequest updateLessonRequest){
-        validateCommonFields(updateLessonRequest);
+    public void validateUpdate(Lesson existingLesson, UpdateLessonRequest lessonRequest){
+        validateCommonFields(lessonRequest);
 
-        validateConflicts(existingLesson.getTutorId(), existingLesson.getId(), updateLessonRequest);
+        validateConflicts(existingLesson.getTutorId(), existingLesson.getId(), lessonRequest);
     }
 
     private void validateCommonFields(LessonsRequest createLessonRequest) {
-        if (createLessonRequest.getDateTime().isBefore(OffsetDateTime.now())) {
+        if (createLessonRequest.getDateTime() != null && createLessonRequest.getDateTime().isBefore(OffsetDateTime.now())) {
             throw new IllegalArgumentException("Lesson date and time must be in the future");
         }
 
-        if (createLessonRequest.getDuration() <= 0) {
+        if (createLessonRequest.getDuration() != null && createLessonRequest.getDuration() <= 0) {
             throw new IllegalArgumentException("Lesson duration must be greater than 0");
         }
     }
 
     private void validateConflicts(UUID tutorId, UUID lessonId, LessonsRequest lessonsRequest) {
+        if (lessonsRequest.getDuration() == null || lessonsRequest.getDateTime() == null) {
+            return;
+        }
+
         List<Lesson> conflictingLessons = lessonRepository.findLessonsByTutorAndDateRange(
                         tutorId,
                         lessonsRequest.getDateTime().minusMinutes(lessonsRequest.getDuration()),
