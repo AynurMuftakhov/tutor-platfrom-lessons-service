@@ -30,8 +30,8 @@ public class LessonService {
         return lessonRepository.save(lesson);
     }
 
-    public List<Lesson> getAllLessons() {
-        return lessonRepository.findAll();
+    public List<Lesson> getAllLessons(UUID tutorId, LessonStatus status){
+        return lessonRepository.findLessonsByTutorIdAndStatus(tutorId, status);
     }
 
     public Lesson getLessonById(UUID id) {

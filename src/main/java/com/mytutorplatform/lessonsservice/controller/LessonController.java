@@ -1,5 +1,6 @@
 package com.mytutorplatform.lessonsservice.controller;
 
+import com.mytutorplatform.lessonsservice.model.LessonStatus;
 import com.mytutorplatform.lessonsservice.model.request.CreateLessonRequest;
 import com.mytutorplatform.lessonsservice.model.request.UpdateLessonRequest;
 import com.mytutorplatform.lessonsservice.service.LessonService;
@@ -27,8 +28,8 @@ public class LessonController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Lesson>> getAllLessons() {
-        return ResponseEntity.ok(lessonService.getAllLessons());
+    public ResponseEntity<List<Lesson>> getAllLessons(@RequestParam(required = false) UUID tutorId, @RequestParam(required = false) LessonStatus status) {
+        return ResponseEntity.ok(lessonService.getAllLessons(tutorId, status));
     }
 
     @GetMapping("/{id}")
