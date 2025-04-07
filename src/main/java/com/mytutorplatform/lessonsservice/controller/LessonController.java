@@ -5,6 +5,9 @@ import com.mytutorplatform.lessonsservice.model.request.CreateLessonRequest;
 import com.mytutorplatform.lessonsservice.model.request.UpdateLessonRequest;
 import com.mytutorplatform.lessonsservice.service.LessonService;
 import com.mytutorplatform.lessonsservice.model.Lesson;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,8 +31,11 @@ public class LessonController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Lesson>> getAllLessons(@RequestParam(required = false) UUID tutorId, @RequestParam(required = false) LessonStatus status) {
-        return ResponseEntity.ok(lessonService.getAllLessons(tutorId, status));
+    public ResponseEntity<Page<Lesson>> getAllLessons(@RequestParam(required = false) UUID tutorId,
+                                                      @RequestParam(required = false) UUID studentId,
+                                                      @RequestParam(required = false) List<LessonStatus> status,
+                                                      @PageableDefault Pageable pageable) {
+        return ResponseEntity.ok(lessonService.getAllLessons(tutorId, studentId, status, pageable));
     }
 
     @GetMapping("/{id}")

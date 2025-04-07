@@ -9,6 +9,8 @@ import com.mytutorplatform.lessonsservice.repository.LessonRepository;
 import com.mytutorplatform.lessonsservice.validation.LessonValidator;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,8 +32,12 @@ public class LessonService {
         return lessonRepository.save(lesson);
     }
 
-    public List<Lesson> getAllLessons(UUID tutorId, LessonStatus status){
-        return lessonRepository.findLessonsByTutorIdAndStatus(tutorId, status);
+    public Page<Lesson> getAllLessons(UUID tutorId, UUID studentId, List<LessonStatus> status, Pageable pageable) {
+        if (studentId != null) {
+            return lessonRepository.findLessonsByStudentAndStatus(studentId, status, pageable);
+        }
+
+        return lessonRepository.findLessonsByTutorIdAndStatus(tutorId, status, pageable);
     }
 
     public Lesson getLessonById(UUID id) {
