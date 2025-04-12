@@ -1,5 +1,6 @@
 package com.mytutorplatform.lessonsservice.service;
 
+import com.mytutorplatform.lessonsservice.kafka.producer.LessonEventProducer;
 import com.mytutorplatform.lessonsservice.mapper.LessonsMapper;
 import com.mytutorplatform.lessonsservice.model.Lesson;
 import com.mytutorplatform.lessonsservice.model.LessonStatus;
@@ -23,6 +24,8 @@ public class LessonService {
     private final LessonRepository lessonRepository;
     private final LessonValidator lessonValidator;
     private final LessonsMapper lessonsMapper;
+    private final LessonEventProducer lessonEventProducer;
+    private final LessonEventService lessonEventService;
 
     public Lesson createLesson(CreateLessonRequest createLessonRequest) {
         lessonValidator.validateCreate(createLessonRequest);
@@ -53,7 +56,12 @@ public class LessonService {
             throw new IllegalStateException("Cannot update a completed lesson");
         }
 
+        if (existingLesson.getDateTime() != updateLessonRequest.getDateTime()) {
+            lessonEventService.handleLessonRescheduled(existingLesson, updateLessonRequest.getDateTime());
+        }
+
         lessonsMapper.update(existingLesson, updateLessonRequest);
+
         return lessonRepository.save(existingLesson);
     }
 
