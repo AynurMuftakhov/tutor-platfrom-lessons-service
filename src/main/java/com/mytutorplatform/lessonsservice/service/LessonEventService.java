@@ -33,6 +33,7 @@ public class LessonEventService {
         event.setStudentIds(List.of(lesson.getStudentId()).toArray(new UUID[0]));
         event.setTutorId(lesson.getTutorId());
         event.setTimestamp(new Date());
+        event.setOldStartTime(lesson.getDateTime());
 
         return event;
     }

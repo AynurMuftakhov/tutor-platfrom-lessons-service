@@ -16,4 +16,5 @@ public class Event {
     private UUID tutorId;
     private UUID[] studentIds;
     private OffsetDateTime startTime;
+    private OffsetDateTime oldStartTime;
 }
