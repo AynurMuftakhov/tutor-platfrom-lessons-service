@@ -37,4 +37,10 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
     order by l.dateTime
 """)
     Page<Lesson> findLessonsByStudentAndStatus(UUID studentId, @Param("status") List<LessonStatus> status, Pageable pageable);
+
+    @Query("SELECT COUNT(DISTINCT l.studentId) FROM Lesson l WHERE l.tutorId = :tutorId AND l.status = :lessonStatus")
+    long countDistinctStudentIdsByTutorIdAndStatus(@Param("tutorId") UUID tutorId, @Param("lessonStatus") LessonStatus lessonStatus);
+
+    @Query("SELECT COUNT(DISTINCT l.id) FROM Lesson l WHERE l.tutorId = :tutorId AND l.status = :status AND l.dateTime BETWEEN :start AND :end")
+    long countByTutorIdAndStatusAndDateTimeBetween(UUID tutorId, LessonStatus status, OffsetDateTime start, OffsetDateTime end);
 }

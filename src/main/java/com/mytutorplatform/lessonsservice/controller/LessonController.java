@@ -1,10 +1,13 @@
 package com.mytutorplatform.lessonsservice.controller;
 
 import com.mytutorplatform.lessonsservice.model.LessonStatus;
+import com.mytutorplatform.lessonsservice.model.TutorStatistics;
 import com.mytutorplatform.lessonsservice.model.request.CreateLessonRequest;
 import com.mytutorplatform.lessonsservice.model.request.UpdateLessonRequest;
 import com.mytutorplatform.lessonsservice.service.LessonService;
 import com.mytutorplatform.lessonsservice.model.Lesson;
+import com.mytutorplatform.lessonsservice.service.StatisticsService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -16,14 +19,12 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/lessons")
+@RequiredArgsConstructor
 @SuppressWarnings("unused")
 public class LessonController {
 
     private final LessonService lessonService;
-
-    public LessonController(LessonService lessonService) {
-        this.lessonService = lessonService;
-    }
+    private final StatisticsService statisticsService;
 
     @PostMapping
     public ResponseEntity<Lesson> createLesson(@RequestBody CreateLessonRequest createLessonRequest) {
@@ -36,6 +37,11 @@ public class LessonController {
                                                       @RequestParam(required = false) List<LessonStatus> status,
                                                       @PageableDefault Pageable pageable) {
         return ResponseEntity.ok(lessonService.getAllLessons(tutorId, studentId, status, pageable));
+    }
+
+    @GetMapping("tutor/{tutorId}/statistics")
+    public ResponseEntity<TutorStatistics> getTutorStatistics(@PathVariable UUID tutorId){
+        return ResponseEntity.ok(statisticsService.getTutorStatistics(tutorId));
     }
 
     @GetMapping("/{id}")
