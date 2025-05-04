@@ -35,8 +35,9 @@ public class LessonController {
     public ResponseEntity<Page<Lesson>> getAllLessons(@RequestParam(required = false) UUID tutorId,
                                                       @RequestParam(required = false) UUID studentId,
                                                       @RequestParam(required = false) List<LessonStatus> status,
+                                                      @RequestParam(required = false) String date,
                                                       @PageableDefault Pageable pageable) {
-        return ResponseEntity.ok(lessonService.getAllLessons(tutorId, studentId, status, pageable));
+        return ResponseEntity.ok(lessonService.getAllLessons(tutorId, studentId, status, date, pageable));
     }
 
     @GetMapping("tutor/{tutorId}/statistics")
