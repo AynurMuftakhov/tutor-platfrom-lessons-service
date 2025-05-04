@@ -3,7 +3,10 @@ package com.mytutorplatform.lessonsservice.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mytutorplatform.lessonsservice.model.Lesson;
 import com.mytutorplatform.lessonsservice.model.LessonStatus;
+import com.mytutorplatform.lessonsservice.model.RecurringLessonSeries;
+import com.mytutorplatform.lessonsservice.model.request.CreateLessonRequest;
 import com.mytutorplatform.lessonsservice.repository.LessonRepository;
+import com.mytutorplatform.lessonsservice.repository.RecurringLessonSeriesRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,11 +19,15 @@ import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -34,6 +41,9 @@ public class LessonControllerIntegrationTest {
     private LessonRepository lessonRepository;
 
     @Autowired
+    private RecurringLessonSeriesRepository recurringLessonSeriesRepository;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     private UUID tutorId1;
@@ -42,8 +52,9 @@ public class LessonControllerIntegrationTest {
 
     @BeforeEach
     void setup() {
-        // Clear repository before each test
+        // Clear repositories before each test
         lessonRepository.deleteAll();
+        recurringLessonSeriesRepository.deleteAll();
 
         // Define IDs for tutors and students
         tutorId1 = UUID.randomUUID();
@@ -181,6 +192,59 @@ public class LessonControllerIntegrationTest {
     }
 
     @Test
+    public void testCreateRecurringLesson() throws Exception {
+        lessonRepository.deleteAll();
+        recurringLessonSeriesRepository.deleteAll();
+
+        CreateLessonRequest request = new CreateLessonRequest();
+        request.setTitle("Recurring Math Lesson");
+        request.setDateTime(OffsetDateTime.now().plusDays(1)); // Future date
+        request.setDuration(60);
+        request.setStudentId(studentId1);
+        request.setTutorId(tutorId1);
+        request.setLocation("Online");
+        request.setLessonPlan("Weekly math tutoring");
+        request.setLearningObjectives("Master algebra");
+
+        request.setRepeatWeekly(true);
+        request.setRepeatWeeksCount(4); // Create 4 weekly lessons
+
+        String responseJson = mockMvc.perform(post("/api/lessons")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        List<RecurringLessonSeries> allSeries = recurringLessonSeriesRepository.findAll();
+        assertEquals(1, allSeries.size());
+        RecurringLessonSeries series = allSeries.get(0);
+        assertNotNull(series);
+        assertEquals(RecurringLessonSeries.RecurrenceFrequency.WEEKLY, series.getFrequency());
+        assertEquals(1, series.getInterval());
+
+        List<Lesson> allLessons = lessonRepository.findAll();
+        assertEquals(4, allLessons.size());
+
+        for (Lesson lesson : allLessons) {
+            assertNotNull(lesson.getSeries());
+            assertEquals(series.getSeriesId(), lesson.getSeries().getSeriesId());
+        }
+
+        OffsetDateTime expectedDateTime = request.getDateTime();
+        for (int i = 0; i < 4; i++) {
+            boolean foundMatch = false;
+            for (Lesson lesson : allLessons) {
+                if (lesson.getDateTime().isEqual(expectedDateTime)) {
+                    foundMatch = true;
+                    break;
+                }
+            }
+            assertTrue(foundMatch, "No lesson found for expected date: " + expectedDateTime);
+            expectedDateTime = expectedDateTime.plusDays(7); // Next week
+        }
+    }
+
+    @Test
     public void testGetLessonCountsByMonth() throws Exception {
         lessonRepository.deleteAll();
 
@@ -232,10 +296,6 @@ public class LessonControllerIntegrationTest {
                 .param("tutorId", tutorId.toString()))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-
-        System.out.println("[DEBUG_LOG] Response: " + response);
-        System.out.println("[DEBUG_LOG] Expected day1: " + day1Str);
-        System.out.println("[DEBUG_LOG] Expected day2: " + day2Str);
 
         // Now add assertions to verify the response
         mockMvc.perform(get("/api/lessons/month-counts")

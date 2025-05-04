@@ -1,5 +1,6 @@
 package com.mytutorplatform.lessonsservice.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -54,6 +55,11 @@ public class Lesson {
 
     @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LessonAttachment> attachments;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "series_id")
+    @JsonIgnore
+    private RecurringLessonSeries series;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

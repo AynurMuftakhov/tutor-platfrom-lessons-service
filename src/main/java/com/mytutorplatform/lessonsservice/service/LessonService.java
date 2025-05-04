@@ -4,9 +4,11 @@ import com.mytutorplatform.lessonsservice.kafka.producer.LessonEventProducer;
 import com.mytutorplatform.lessonsservice.mapper.LessonsMapper;
 import com.mytutorplatform.lessonsservice.model.Lesson;
 import com.mytutorplatform.lessonsservice.model.LessonStatus;
+import com.mytutorplatform.lessonsservice.model.RecurringLessonSeries;
 import com.mytutorplatform.lessonsservice.model.request.CreateLessonRequest;
 import com.mytutorplatform.lessonsservice.model.request.UpdateLessonRequest;
 import com.mytutorplatform.lessonsservice.repository.LessonRepository;
+import com.mytutorplatform.lessonsservice.repository.RecurringLessonSeriesRepository;
 import com.mytutorplatform.lessonsservice.repository.specifications.LessonsSpecificationsBuilder;
 import com.mytutorplatform.lessonsservice.validation.LessonValidator;
 import jakarta.persistence.EntityNotFoundException;
@@ -15,12 +17,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,16 +37,62 @@ import java.util.stream.Collectors;
 public class LessonService {
 
     private final LessonRepository lessonRepository;
+    private final RecurringLessonSeriesRepository recurringLessonSeriesRepository;
     private final LessonValidator lessonValidator;
     private final LessonsMapper lessonsMapper;
     private final LessonEventService lessonEventService;
 
+    @Transactional
     public Lesson createLesson(CreateLessonRequest createLessonRequest) {
         lessonValidator.validateCreate(createLessonRequest);
 
-        Lesson lesson = lessonsMapper.map(createLessonRequest);
+        if (Boolean.TRUE.equals(createLessonRequest.getRepeatWeekly())) {
+            return createRecurringLessons(createLessonRequest);
+        }
 
+        Lesson lesson = lessonsMapper.map(createLessonRequest);
         return lessonRepository.save(lesson);
+
+    }
+
+    private Lesson createRecurringLessons(CreateLessonRequest createLessonRequest) {
+        RecurringLessonSeries series = getRecurringLessonSeries(createLessonRequest);
+
+        RecurringLessonSeries savedSeries = recurringLessonSeriesRepository.save(series);
+
+        List<Lesson> lessons = new ArrayList<>();
+        OffsetDateTime currentDateTime = createLessonRequest.getDateTime();
+        OffsetDateTime endDateTime = savedSeries.getUntil();
+
+        while (!currentDateTime.isAfter(endDateTime)) {
+            Lesson lesson = lessonsMapper.map(createLessonRequest);
+            lesson.setDateTime(currentDateTime);
+            lesson.setSeries(savedSeries);
+            lessons.add(lesson);
+
+            currentDateTime = currentDateTime.plusDays(7);
+        }
+
+        List<Lesson> savedLessons = lessonRepository.saveAll(lessons);
+
+        return savedLessons.isEmpty() ? null : savedLessons.get(0);
+    }
+
+    private RecurringLessonSeries getRecurringLessonSeries(CreateLessonRequest createLessonRequest) {
+        RecurringLessonSeries series = new RecurringLessonSeries();
+        series.setFrequency(RecurringLessonSeries.RecurrenceFrequency.WEEKLY);
+        series.setInterval(1);
+
+        if (createLessonRequest.getRepeatUntil() != null) {
+            series.setUntil(createLessonRequest.getRepeatUntil());
+        } else if (createLessonRequest.getRepeatWeeksCount() != null) {
+            OffsetDateTime endDate = createLessonRequest.getDateTime().plusDays((createLessonRequest.getRepeatWeeksCount() - 1) * 7L);
+            series.setUntil(endDate);
+        } else {
+            OffsetDateTime endDate = createLessonRequest.getDateTime().plusDays(3 * 7);
+            series.setUntil(endDate);
+        }
+        return series;
     }
 
     public Page<Lesson> getAllLessons(UUID tutorId, UUID studentId, List<LessonStatus> status, String date, Pageable pageable) {
