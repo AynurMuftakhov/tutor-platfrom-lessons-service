@@ -177,6 +177,86 @@ public class LessonControllerIntegrationTest {
                 YearMonth.now().atEndOfMonth().atTime(23, 59, 59).atOffset(ZoneOffset.UTC)
         );
 
-        assertEquals(2, count); // Only 2 lessons this month
+        assertEquals(2, count);
+    }
+
+    @Test
+    public void testGetLessonCountsByMonth() throws Exception {
+        lessonRepository.deleteAll();
+
+        UUID tutorId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+
+        int year = YearMonth.now().getYear();
+        int month = YearMonth.now().getMonthValue();
+
+        OffsetDateTime day1 = YearMonth.of(year, month).atDay(10).atStartOfDay().atOffset(ZoneOffset.UTC);
+        OffsetDateTime day2 = YearMonth.of(year, month).atDay(15).atStartOfDay().atOffset(ZoneOffset.UTC);
+
+        Lesson lesson1 = new Lesson();
+        lesson1.setTutorId(tutorId);
+        lesson1.setStudentId(studentId);
+        lesson1.setDateTime(day1);
+        lesson1.setDuration(60); 
+        lessonRepository.save(lesson1);
+
+        Lesson lesson2 = new Lesson();
+        lesson2.setTutorId(tutorId);
+        lesson2.setStudentId(studentId);
+        lesson2.setDateTime(day1);
+        lesson2.setDuration(60); 
+        lessonRepository.save(lesson2);
+
+        Lesson lesson3 = new Lesson();
+        lesson3.setTutorId(tutorId);
+        lesson3.setStudentId(studentId);
+        lesson3.setDateTime(day2);
+        lesson3.setDuration(60);
+        lessonRepository.save(lesson3);
+
+        Lesson lesson4 = new Lesson();
+        lesson4.setTutorId(UUID.randomUUID());
+        lesson4.setStudentId(studentId);
+        lesson4.setDateTime(day1);
+        lesson4.setDuration(60);
+        lessonRepository.save(lesson4);
+
+        String day1Str = day1.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        String day2Str = day2.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        // Test with tutorId filter
+        String response = mockMvc.perform(get("/api/lessons/month-counts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .param("year", String.valueOf(year))
+                .param("month", String.valueOf(month))
+                .param("tutorId", tutorId.toString()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        System.out.println("[DEBUG_LOG] Response: " + response);
+        System.out.println("[DEBUG_LOG] Expected day1: " + day1Str);
+        System.out.println("[DEBUG_LOG] Expected day2: " + day2Str);
+
+        // Now add assertions to verify the response
+        mockMvc.perform(get("/api/lessons/month-counts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .param("year", String.valueOf(year))
+                .param("month", String.valueOf(month))
+                .param("tutorId", tutorId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$." + day1Str).value(2))
+                .andExpect(jsonPath("$." + day2Str).value(1));
+
+        // Test with studentId filter
+        mockMvc.perform(get("/api/lessons/month-counts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .param("year", String.valueOf(year))
+                .param("month", String.valueOf(month))
+                .param("studentId", studentId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$." + day1Str).value(3))
+                .andExpect(jsonPath("$." + day2Str).value(1));
     }
 }

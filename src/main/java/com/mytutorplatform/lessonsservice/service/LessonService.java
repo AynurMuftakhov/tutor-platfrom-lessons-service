@@ -18,9 +18,14 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -86,7 +91,7 @@ public class LessonService {
         if (date == null || date.isEmpty()) {
             return new StartEndDate(null, null);
         }
-        
+
         LocalDate localDate = LocalDate.parse(date);
 
         OffsetDateTime startOfDay = localDate.atStartOfDay().atOffset(ZoneOffset.UTC);
@@ -95,4 +100,34 @@ public class LessonService {
     }
 
     private record StartEndDate(OffsetDateTime startOfDay, OffsetDateTime endOfDay) {}
+
+    public Map<String, Integer> getLessonCountsByMonth(int year, int month, UUID studentId, UUID tutorId) {
+        YearMonth yearMonth = YearMonth.of(year, month);
+
+        LocalDate firstDayOfMonth = yearMonth.atDay(1);
+        LocalDate lastDayOfMonth = yearMonth.atEndOfMonth();
+
+        OffsetDateTime startDateTime = firstDayOfMonth.atStartOfDay().atOffset(ZoneOffset.UTC);
+        OffsetDateTime endDateTime = lastDayOfMonth.plusDays(1).atStartOfDay().minusNanos(1).atOffset(ZoneOffset.UTC);
+
+        Specification<Lesson> spec = LessonsSpecificationsBuilder.lessonsByParams(tutorId, studentId, null, startDateTime, endDateTime);
+
+        List<Lesson> lessons = lessonRepository.findAll(spec);
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        Map<String, Integer> countsByDay = lessons.stream()
+            .collect(Collectors.groupingBy(
+                lesson -> lesson.getDateTime().toLocalDate().format(formatter),
+                Collectors.summingInt(lesson -> 1)
+            ));
+
+        Map<String, Integer> result = new HashMap<>();
+        for (int day = 1; day <= lastDayOfMonth.getDayOfMonth(); day++) {
+            String dateKey = LocalDate.of(year, month, day).format(formatter);
+            result.put(dateKey, countsByDay.getOrDefault(dateKey, 0));
+        }
+
+        return result;
+    }
 }

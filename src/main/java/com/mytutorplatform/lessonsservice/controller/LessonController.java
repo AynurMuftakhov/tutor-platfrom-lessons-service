@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -59,5 +60,14 @@ public class LessonController {
     public ResponseEntity<Void> deleteLesson(@PathVariable UUID id) {
         lessonService.deleteLesson(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/month-counts")
+    public ResponseEntity<Map<String, Integer>> getLessonCountsByMonth(
+            @RequestParam int year,
+            @RequestParam int month,
+            @RequestParam(required = false) UUID studentId,
+            @RequestParam(required = false) UUID tutorId) {
+        return ResponseEntity.ok(lessonService.getLessonCountsByMonth(year, month, studentId, tutorId));
     }
 }
