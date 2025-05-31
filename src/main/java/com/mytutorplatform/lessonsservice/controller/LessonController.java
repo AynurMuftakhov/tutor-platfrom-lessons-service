@@ -14,6 +14,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,12 +34,22 @@ public class LessonController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<Lesson>> getAllLessons(@RequestParam(required = false) UUID tutorId,
+    public List<Lesson> getAllLessons(@RequestParam(required = false) UUID tutorId,
                                                       @RequestParam(required = false) UUID studentId,
                                                       @RequestParam(required = false) List<LessonStatus> status,
-                                                      @RequestParam(required = false) String date,
-                                                      @PageableDefault Pageable pageable) {
-        return ResponseEntity.ok(lessonService.getAllLessons(tutorId, studentId, status, date, pageable));
+                                                      @RequestParam(required = false) OffsetDateTime date,
+                                                      @RequestParam(required = false) OffsetDateTime startDate,
+                                                      @RequestParam(required = false) OffsetDateTime endDate) {
+        return lessonService.getAllLessons(tutorId, studentId, status, date, startDate, endDate);
+    }
+
+    @GetMapping("/upcoming")
+    public List<Lesson> getUpcomingLessons(@RequestParam(required = false) UUID tutorId,
+                                           @RequestParam(required = false) UUID studentId,
+                                           @RequestParam(required = false) List<LessonStatus> status,
+                                           @RequestParam OffsetDateTime currentDate,
+                                           @RequestParam(required = false, defaultValue = "2") int limit) {
+        return lessonService.getUpcomingLessons(tutorId, studentId, status, currentDate, limit);
     }
 
     @GetMapping("tutor/{tutorId}/statistics")

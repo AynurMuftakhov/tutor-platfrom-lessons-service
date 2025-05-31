@@ -30,6 +30,14 @@ public class LessonsSpecificationsBuilder {
                 predicate = cb.and(predicate, cb.between(root.get("dateTime"), startDateTime, endDateTime));
             }
 
+            if (startDateTime != null && endDateTime == null) {
+                predicate = cb.and(predicate, cb.greaterThanOrEqualTo(root.get("dateTime"), startDateTime));
+            }
+
+            if (startDateTime == null && endDateTime != null) {
+                predicate = cb.and(predicate, cb.lessThanOrEqualTo(root.get("dateTime"), endDateTime));
+            }
+
             return predicate;
         };
     }

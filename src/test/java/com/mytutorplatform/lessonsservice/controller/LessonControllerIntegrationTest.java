@@ -22,6 +22,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -125,12 +126,12 @@ public class LessonControllerIntegrationTest {
 
         mockMvc.perform(get("/api/lessons")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .param("date", OffsetDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE))
+                        .param("date", OffsetDateTime.now().toString())
                         .param("tutorId", tutorId1.toString())
                 )
                 // Expect HTTP 200 status
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements", is(2)));
+                .andExpect(jsonPath("$", hasSize(2)));
     }
 
     @Test
@@ -287,15 +288,6 @@ public class LessonControllerIntegrationTest {
 
         String day1Str = day1.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         String day2Str = day2.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-
-        // Test with tutorId filter
-        String response = mockMvc.perform(get("/api/lessons/month-counts")
-                .contentType(MediaType.APPLICATION_JSON)
-                .param("year", String.valueOf(year))
-                .param("month", String.valueOf(month))
-                .param("tutorId", tutorId.toString()))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
 
         // Now add assertions to verify the response
         mockMvc.perform(get("/api/lessons/month-counts")

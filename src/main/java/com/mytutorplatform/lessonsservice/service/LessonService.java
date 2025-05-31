@@ -14,7 +14,9 @@ import com.mytutorplatform.lessonsservice.validation.LessonValidator;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -95,15 +97,37 @@ public class LessonService {
         return series;
     }
 
-    public Page<Lesson> getAllLessons(UUID tutorId, UUID studentId, List<LessonStatus> status, String date, Pageable pageable) {
-        StartEndDate startEndDate = getStartEndDate(date);
+    public List<Lesson> getAllLessons(UUID tutorId,
+                                      UUID studentId,
+                                      List<LessonStatus> status,
+                                      OffsetDateTime date,
+                                      OffsetDateTime startDate,
+                                      OffsetDateTime endDate) {
+        StartEndDate startEndDate = getStartEndDate(date, startDate, endDate);
         OffsetDateTime startOfDay = startEndDate.startOfDay();
         OffsetDateTime endOfDay = startEndDate.endOfDay();
 
-
         Specification<Lesson> lessonsByParamsSpec = LessonsSpecificationsBuilder.lessonsByParams(tutorId, studentId, status, startOfDay, endOfDay);
 
-        return lessonRepository.findAll(lessonsByParamsSpec, pageable);
+        return lessonRepository.findAll(lessonsByParamsSpec);
+    }
+
+    public List<Lesson> getUpcomingLessons(UUID tutorId,
+                                           UUID studentId,
+                                           List<LessonStatus> status,
+                                           OffsetDateTime currentDate,
+                                           int limit) {
+        Specification<Lesson> params = LessonsSpecificationsBuilder.lessonsByParams(tutorId,
+                studentId,
+                status,
+                currentDate,
+                null);
+
+
+        Pageable pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.ASC, "dateTime"));
+        Page<Lesson> page = lessonRepository.findAll(params, pageable);
+
+        return page.getContent();
     }
 
     public Lesson getLessonById(UUID id) {
@@ -138,15 +162,21 @@ public class LessonService {
         lessonRepository.deleteById(id);
     }
 
-    private static StartEndDate getStartEndDate(String date) {
-        if (date == null || date.isEmpty()) {
+    private static StartEndDate getStartEndDate(OffsetDateTime date, OffsetDateTime startTime, OffsetDateTime endTime) {
+        if (startTime != null && endTime != null) {
+            return new StartEndDate(startTime, endTime);
+        }
+
+        if (date == null) {
             return new StartEndDate(null, null);
         }
 
-        LocalDate localDate = LocalDate.parse(date);
+        ZoneOffset offset = date.getOffset();
+        LocalDate localDate = date.toLocalDate();
 
-        OffsetDateTime startOfDay = localDate.atStartOfDay().atOffset(ZoneOffset.UTC);
-        OffsetDateTime endOfDay = localDate.plusDays(1).atStartOfDay().minusNanos(1).atOffset(ZoneOffset.UTC);
+        OffsetDateTime startOfDay = localDate.atStartOfDay().atOffset(offset);
+        OffsetDateTime endOfDay = localDate.plusDays(1).atStartOfDay().minusNanos(1).atOffset(offset);
+
         return new StartEndDate(startOfDay, endOfDay);
     }
 
