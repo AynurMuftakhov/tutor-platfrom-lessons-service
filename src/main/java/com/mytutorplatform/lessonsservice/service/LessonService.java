@@ -6,6 +6,7 @@ import com.mytutorplatform.lessonsservice.model.LessonStatus;
 import com.mytutorplatform.lessonsservice.model.RecurringLessonSeries;
 import com.mytutorplatform.lessonsservice.model.request.CreateLessonRequest;
 import com.mytutorplatform.lessonsservice.model.request.UpdateLessonRequest;
+import com.mytutorplatform.lessonsservice.model.response.LessonLight;
 import com.mytutorplatform.lessonsservice.repository.LessonRepository;
 import com.mytutorplatform.lessonsservice.repository.RecurringLessonSeriesRepository;
 import com.mytutorplatform.lessonsservice.repository.specifications.LessonsSpecificationsBuilder;
@@ -186,6 +187,15 @@ public class LessonService {
         OffsetDateTime endOfDay = localDate.plusDays(1).atStartOfDay().minusNanos(1).atOffset(offset);
 
         return new StartEndDate(startOfDay, endOfDay);
+    }
+
+    public List<LessonLight> getMyTutorSchedule(UUID tutorId, UUID studentId, OffsetDateTime startDate, OffsetDateTime endDate) {
+        List<LessonStatus> status = List.of(LessonStatus.SCHEDULED, LessonStatus.IN_PROGRESS, LessonStatus.RESCHEDULED, LessonStatus.COMPLETED);
+
+        Specification<Lesson> lessonsByParamsSpec = LessonsSpecificationsBuilder.lessonsByParams(tutorId, studentId, status, startDate, endDate, null);
+
+        List<Lesson> lessons = lessonRepository.findAll(lessonsByParamsSpec);
+        return lessonsMapper.mapListWithoutSensitiveFields(lessons);
     }
 
     private record StartEndDate(OffsetDateTime startOfDay, OffsetDateTime endOfDay) {}

@@ -4,6 +4,7 @@ import com.mytutorplatform.lessonsservice.model.LessonStatus;
 import com.mytutorplatform.lessonsservice.model.TutorStatistics;
 import com.mytutorplatform.lessonsservice.model.request.CreateLessonRequest;
 import com.mytutorplatform.lessonsservice.model.request.UpdateLessonRequest;
+import com.mytutorplatform.lessonsservice.model.response.LessonLight;
 import com.mytutorplatform.lessonsservice.service.LessonService;
 import com.mytutorplatform.lessonsservice.model.Lesson;
 import com.mytutorplatform.lessonsservice.service.StatisticsService;
@@ -50,6 +51,14 @@ public class LessonController {
                                            @RequestParam OffsetDateTime currentDate,
                                            @RequestParam(required = false, defaultValue = "2") int limit) {
         return lessonService.getUpcomingLessons(tutorId, studentId, status, currentDate, limit);
+    }
+
+    @GetMapping("/mytutor/schedule")
+    public List<LessonLight> getMyTutorSchedule(@RequestParam(required = false) UUID tutorId,
+                                                @RequestParam(required = false) UUID studentId,
+                                                @RequestParam OffsetDateTime startDate,
+                                                @RequestParam OffsetDateTime endDate) {
+        return lessonService.getMyTutorSchedule(tutorId, studentId, startDate, endDate);
     }
 
     @GetMapping("/now")
