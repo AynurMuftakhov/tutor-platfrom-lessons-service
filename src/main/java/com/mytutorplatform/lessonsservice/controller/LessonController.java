@@ -52,6 +52,13 @@ public class LessonController {
         return lessonService.getUpcomingLessons(tutorId, studentId, status, currentDate, limit);
     }
 
+    @GetMapping("/now")
+    public Lesson getUpcomingLessons(@RequestParam(required = false) UUID tutorId,
+                                     @RequestParam(required = false) UUID studentId,
+                                     @RequestParam OffsetDateTime currentDate) {
+        return lessonService.getCurrentLesson(tutorId, studentId, currentDate);
+    }
+
     @GetMapping("tutor/{tutorId}/statistics")
     public ResponseEntity<TutorStatistics> getTutorStatistics(@PathVariable UUID tutorId){
         return ResponseEntity.ok(statisticsService.getTutorStatistics(tutorId));

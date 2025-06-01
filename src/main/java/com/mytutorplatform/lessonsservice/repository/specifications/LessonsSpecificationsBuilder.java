@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class LessonsSpecificationsBuilder {
-    public static Specification<Lesson> lessonsByParams(UUID tutorId, UUID studentId, List<LessonStatus> status, OffsetDateTime startDateTime, OffsetDateTime endDateTime) {
+    public static Specification<Lesson> lessonsByParams(UUID tutorId, UUID studentId, List<LessonStatus> status, OffsetDateTime startDateTime, OffsetDateTime endDateTime, OffsetDateTime currentDate) {
         return (root, query, cb) -> {
             Predicate predicate = cb.conjunction();
 
@@ -38,8 +38,16 @@ public class LessonsSpecificationsBuilder {
                 predicate = cb.and(predicate, cb.lessThanOrEqualTo(root.get("dateTime"), endDateTime));
             }
 
+            if (currentDate != null) {
+                predicate = cb.and(predicate, cb.lessThanOrEqualTo(root.get("dateTime"), currentDate));
+                predicate = cb.and(predicate, cb.greaterThan(root.get("endDate"), currentDate));
+            }
+
             return predicate;
         };
     }
 
+    public static Specification<Lesson> currentLessonParams(UUID tutorId, UUID studentId, OffsetDateTime currentDate, List<LessonStatus> statuses) {
+        return lessonsByParams(tutorId, studentId, statuses, null, null, currentDate.plusMinutes(5));
+    }
 }

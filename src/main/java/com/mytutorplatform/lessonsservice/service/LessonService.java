@@ -1,6 +1,5 @@
 package com.mytutorplatform.lessonsservice.service;
 
-import com.mytutorplatform.lessonsservice.kafka.producer.LessonEventProducer;
 import com.mytutorplatform.lessonsservice.mapper.LessonsMapper;
 import com.mytutorplatform.lessonsservice.model.Lesson;
 import com.mytutorplatform.lessonsservice.model.LessonStatus;
@@ -107,7 +106,7 @@ public class LessonService {
         OffsetDateTime startOfDay = startEndDate.startOfDay();
         OffsetDateTime endOfDay = startEndDate.endOfDay();
 
-        Specification<Lesson> lessonsByParamsSpec = LessonsSpecificationsBuilder.lessonsByParams(tutorId, studentId, status, startOfDay, endOfDay);
+        Specification<Lesson> lessonsByParamsSpec = LessonsSpecificationsBuilder.lessonsByParams(tutorId, studentId, status, startOfDay, endOfDay, null);
 
         return lessonRepository.findAll(lessonsByParamsSpec);
     }
@@ -121,6 +120,7 @@ public class LessonService {
                 studentId,
                 status,
                 currentDate,
+                null,
                 null);
 
 
@@ -128,6 +128,14 @@ public class LessonService {
         Page<Lesson> page = lessonRepository.findAll(params, pageable);
 
         return page.getContent();
+    }
+
+    public Lesson getCurrentLesson(UUID tutorId, UUID studentId, OffsetDateTime currentDate) {
+        List<LessonStatus> statuses = List.of(LessonStatus.SCHEDULED, LessonStatus.IN_PROGRESS, LessonStatus.RESCHEDULED);
+
+        Specification<Lesson> lessonSpecification = LessonsSpecificationsBuilder.currentLessonParams(tutorId, studentId, currentDate, statuses);
+
+        return lessonRepository.findOne(lessonSpecification).orElse(null);
     }
 
     public Lesson getLessonById(UUID id) {
@@ -191,7 +199,7 @@ public class LessonService {
         OffsetDateTime startDateTime = firstDayOfMonth.atStartOfDay().atOffset(ZoneOffset.UTC);
         OffsetDateTime endDateTime = lastDayOfMonth.plusDays(1).atStartOfDay().minusNanos(1).atOffset(ZoneOffset.UTC);
 
-        Specification<Lesson> spec = LessonsSpecificationsBuilder.lessonsByParams(tutorId, studentId, null, startDateTime, endDateTime);
+        Specification<Lesson> spec = LessonsSpecificationsBuilder.lessonsByParams(tutorId, studentId, null, startDateTime, endDateTime, null);
 
         List<Lesson> lessons = lessonRepository.findAll(spec);
 

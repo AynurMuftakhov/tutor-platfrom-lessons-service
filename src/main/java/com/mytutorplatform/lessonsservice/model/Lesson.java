@@ -25,6 +25,9 @@ public class Lesson {
     @Column(nullable = false)
     private OffsetDateTime dateTime;
 
+    @Column
+    private OffsetDateTime endDate;
+
     @Column(nullable = false)
     private int duration;
 
