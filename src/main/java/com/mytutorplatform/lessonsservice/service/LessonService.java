@@ -26,7 +26,6 @@ import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -146,7 +145,7 @@ public class LessonService {
     public Lesson updateLesson(UUID id, UpdateLessonRequest updateLessonRequest) {
         Lesson existingLesson = getLessonById(id);
 
-        lessonValidator.validateUpdate(existingLesson, updateLessonRequest);
+        lessonValidator.validateUpdate(updateLessonRequest);
 
         if (existingLesson.getStatus() == LessonStatus.COMPLETED) {
             throw new IllegalStateException("Cannot update a completed lesson");
