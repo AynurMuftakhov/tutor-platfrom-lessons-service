@@ -1,5 +1,7 @@
 package com.mytutorplatform.lessonsservice.service;
 
+import com.mytutorplatform.lessonsservice.mapper.ListeningTaskMapper;
+import com.mytutorplatform.lessonsservice.model.Lesson;
 import com.mytutorplatform.lessonsservice.model.ListeningTask;
 import com.mytutorplatform.lessonsservice.model.request.CreateListeningTaskRequest;
 import com.mytutorplatform.lessonsservice.repository.LessonRepository;
@@ -9,7 +11,9 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,33 +24,26 @@ public class ListeningTaskService {
     private final ListeningTaskRepository listeningTaskRepository;
     private final LessonRepository lessonRepository;
     private final ListeningTaskValidator listeningTaskValidator;
+    private final ListeningTaskMapper listeningTaskMapper;
 
     @Transactional
-    public ListeningTask createListeningTask(UUID lessonId, CreateListeningTaskRequest request) {
+    public ListeningTask createListeningTask(CreateListeningTaskRequest request) {
         listeningTaskValidator.validateCreate(request);
-        
-        if (!lessonRepository.existsById(lessonId)) {
-            throw new EntityNotFoundException("Lesson not found with id: " + lessonId);
-        }
-        
-        ListeningTask listeningTask = new ListeningTask();
-        listeningTask.setLessonId(lessonId);
-        listeningTask.setAssetType(request.getAssetType());
-        listeningTask.setSourceUrl(request.getSourceUrl());
-        listeningTask.setStartSec(request.getStartSec());
-        listeningTask.setEndSec(request.getEndSec());
-        listeningTask.setWordLimit(request.getWordLimit());
-        listeningTask.setTimeLimitSec(request.getTimeLimitSec());
-        
+
+        ListeningTask listeningTask = listeningTaskMapper.map(request);
+
         return listeningTaskRepository.save(listeningTask);
     }
 
     public List<ListeningTask> getListeningTasksByLessonId(UUID lessonId) {
-        if (!lessonRepository.existsById(lessonId)) {
-            throw new EntityNotFoundException("Lesson not found with id: " + lessonId);
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new EntityNotFoundException("Lesson not found with id: " + lessonId));
+
+        if (CollectionUtils.isEmpty(lesson.getTaskIds())) {
+            return Collections.emptyList();
         }
-        
-        return listeningTaskRepository.findByLessonId(lessonId);
+
+        return listeningTaskRepository.findAllById(lesson.getTaskIds());
     }
 
     @Transactional
@@ -56,5 +53,18 @@ public class ListeningTaskService {
         }
         
         listeningTaskRepository.deleteById(taskId);
+    }
+
+    @Transactional
+    public void deleteListeningTaskFromLesson(UUID lessonId, UUID taskId) {
+        if (!listeningTaskRepository.existsById(taskId)) {
+            throw new EntityNotFoundException("Listening task not found with id: " + taskId);
+        }
+
+        listeningTaskRepository.deleteById(taskId);
+    }
+
+    public List<ListeningTask> getAllListeningTasks() {
+        return listeningTaskRepository.findAll();
     }
 }

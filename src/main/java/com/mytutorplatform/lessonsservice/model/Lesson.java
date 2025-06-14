@@ -59,6 +59,8 @@ public class Lesson {
     @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LessonAttachment> attachments;
 
+    private List<UUID> taskIds;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "series_id")
     @JsonIgnore

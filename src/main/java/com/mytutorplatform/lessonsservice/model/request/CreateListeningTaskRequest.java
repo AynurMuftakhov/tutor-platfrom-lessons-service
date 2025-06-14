@@ -5,6 +5,7 @@ import lombok.Data;
 
 @Data
 public class CreateListeningTaskRequest {
+    private String title;
     private AssetType assetType;
     private String sourceUrl;
     private Integer startSec;

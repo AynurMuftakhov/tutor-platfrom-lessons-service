@@ -5,6 +5,7 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -16,8 +17,7 @@ public class ListeningTask {
     @GeneratedValue
     private UUID id;
 
-    @Column(nullable = false)
-    private UUID lessonId;
+    private String title;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
