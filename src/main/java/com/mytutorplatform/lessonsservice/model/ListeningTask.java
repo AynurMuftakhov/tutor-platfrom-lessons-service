@@ -36,6 +36,9 @@ public class ListeningTask {
 
     private Integer timeLimitSec;
 
+    @Column(name = "material_id")
+    private UUID folderId;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

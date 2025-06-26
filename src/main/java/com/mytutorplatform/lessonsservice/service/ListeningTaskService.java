@@ -64,7 +64,10 @@ public class ListeningTaskService {
         listeningTaskRepository.deleteById(taskId);
     }
 
-    public List<ListeningTask> getAllListeningTasks() {
-        return listeningTaskRepository.findAll();
+    public List<ListeningTask> getAllListeningTasks(UUID folderId) {
+        if (folderId == null) {
+            return listeningTaskRepository.findAll();
+        }
+       return listeningTaskRepository.findByFolderId(folderId);
     }
 }

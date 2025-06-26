@@ -3,6 +3,8 @@ package com.mytutorplatform.lessonsservice.model.request;
 import com.mytutorplatform.lessonsservice.model.ListeningTask.AssetType;
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class CreateListeningTaskRequest {
     private String title;
@@ -12,4 +14,5 @@ public class CreateListeningTaskRequest {
     private Integer endSec;
     private Integer wordLimit;
     private Integer timeLimitSec;
+    private UUID folderId;
 }

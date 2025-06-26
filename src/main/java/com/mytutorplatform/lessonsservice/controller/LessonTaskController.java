@@ -49,8 +49,8 @@ public class LessonTaskController {
     }
 
     @GetMapping("/listening-tasks")
-    public List<ListeningTask> getAllListeningTasks() {
-        return listeningTaskService.getAllListeningTasks();
+    public List<ListeningTask> getAllListeningTasks(@RequestParam(required = false) UUID folderId) {
+        return listeningTaskService.getAllListeningTasks(folderId);
     }
 
     @PostMapping("/listening-tasks")
