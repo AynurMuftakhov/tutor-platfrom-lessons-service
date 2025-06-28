@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface MaterialFolderRepository extends JpaRepository<MaterialFolder, UUID> {
     List<MaterialFolder> findByParentIsNull();
+    List<MaterialFolder> findByParentId(UUID parentId);
 }

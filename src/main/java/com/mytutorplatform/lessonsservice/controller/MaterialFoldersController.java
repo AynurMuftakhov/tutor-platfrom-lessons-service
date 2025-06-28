@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 
 @RestController
@@ -24,12 +25,20 @@ public class MaterialFoldersController {
     }
 
     @GetMapping
-    public List<MaterialFolder> list() {
+    public List<MaterialFolder> list(@RequestParam(required = false) UUID parentId) {
+        if (parentId != null) {
+            return service.findByParentId(parentId);
+        }
         return service.findAll();
     }
 
     @GetMapping("/tree")
     public List<MaterialFolderTreeDto> tree() {
         return service.getTree();
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<MaterialFolder> update(@PathVariable UUID id, @RequestBody CreateMaterialFolderRequest req) {
+        return ResponseEntity.ok(service.update(id, req));
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,9 +32,31 @@ public class MaterialFolderService {
         return repo.save(folder);
     }
 
+    public MaterialFolder update(UUID id, CreateMaterialFolderRequest req) {
+        MaterialFolder folder = repo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Folder not found"));
+
+        folder.setName(req.getName());
+
+        if (req.getParentId() != null) {
+            MaterialFolder parent = repo.findById(req.getParentId())
+                    .orElseThrow(() -> new EntityNotFoundException("Parent not found"));
+            folder.setParent(parent);
+        } else {
+            folder.setParent(null);
+        }
+
+        return repo.save(folder);
+    }
+
     @Transactional(readOnly = true)
     public List<MaterialFolder> findAll() {
         return repo.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MaterialFolder> findByParentId(UUID parentId) {
+        return repo.findByParentId(parentId);
     }
 
     /** builds a nested tree for the UI */

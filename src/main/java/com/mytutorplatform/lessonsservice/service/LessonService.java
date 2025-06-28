@@ -151,7 +151,7 @@ public class LessonService {
             throw new IllegalStateException("Cannot update a completed lesson");
         }
 
-        if (existingLesson.getDateTime() != updateLessonRequest.getDateTime()) {
+        if (updateLessonRequest.getDateTime() != null && existingLesson.getDateTime() != updateLessonRequest.getDateTime()) {
             lessonEventService.handleLessonRescheduled(existingLesson, updateLessonRequest.getDateTime());
         }
 
