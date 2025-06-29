@@ -5,7 +5,6 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -19,13 +18,6 @@ public class ListeningTask {
 
     private String title;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private AssetType assetType;
-
-    @Column(nullable = false)
-    private String sourceUrl;
-
     @Column(nullable = false)
     private Integer startSec;
 
@@ -37,12 +29,8 @@ public class ListeningTask {
     private Integer timeLimitSec;
 
     @Column(name = "material_id")
-    private UUID folderId;
+    private UUID materialId;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
-
-    public enum AssetType {
-        VIDEO, AUDIO
-    }
 }

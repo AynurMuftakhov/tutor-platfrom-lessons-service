@@ -14,7 +14,7 @@ public class MaterialSpecificationsBuilder {
     public MaterialSpecificationsBuilder withFolderId(UUID folderId) {
         if (folderId != null) {
             specifications.add((root, query, criteriaBuilder) ->
-                    criteriaBuilder.equal(root.get("folder").get("id"), folderId));
+                    criteriaBuilder.equal(root.get("folderId"), folderId));
         }
         return this;
     }
@@ -22,7 +22,7 @@ public class MaterialSpecificationsBuilder {
     public MaterialSpecificationsBuilder withSearch(String search) {
         if (search != null && !search.isEmpty()) {
             specifications.add((root, query, criteriaBuilder) ->
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), "%" + search.toLowerCase() + "%"));
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("title")), "%" + search.toLowerCase() + "%"));
         }
         return this;
     }

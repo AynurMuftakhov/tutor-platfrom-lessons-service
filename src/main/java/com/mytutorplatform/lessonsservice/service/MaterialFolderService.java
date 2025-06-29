@@ -2,6 +2,7 @@ package com.mytutorplatform.lessonsservice.service;
 
 import com.mytutorplatform.lessonsservice.model.MaterialFolder;
 import com.mytutorplatform.lessonsservice.model.response.CreateMaterialFolderRequest;
+import com.mytutorplatform.lessonsservice.model.response.MaterialFolderDTO;
 import com.mytutorplatform.lessonsservice.model.response.MaterialFolderTreeDto;
 import com.mytutorplatform.lessonsservice.repository.MaterialFolderRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -10,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -18,8 +18,9 @@ import java.util.stream.Collectors;
 public class MaterialFolderService {
 
     private final MaterialFolderRepository repo;
+    private final MaterialService materialService;
 
-    public MaterialFolder create(CreateMaterialFolderRequest req) {
+    public MaterialFolderDTO create(CreateMaterialFolderRequest req) {
         MaterialFolder parent = null;
         if (req.getParentId() != null) {
             parent = repo.findById(req.getParentId())
@@ -29,24 +30,30 @@ public class MaterialFolderService {
                 .name(req.getName())
                 .parent(parent)
                 .build();
-        return repo.save(folder);
+        return MaterialFolderDTO.from(repo.save(folder));
     }
 
-    public MaterialFolder update(UUID id, CreateMaterialFolderRequest req) {
+    public MaterialFolderDTO update(UUID id, CreateMaterialFolderRequest req) {
         MaterialFolder folder = repo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Folder not found"));
 
-        folder.setName(req.getName());
+        if (req.getName() != null) {
+            folder.setName(req.getName());
+        }
 
         if (req.getParentId() != null) {
             MaterialFolder parent = repo.findById(req.getParentId())
                     .orElseThrow(() -> new EntityNotFoundException("Parent not found"));
             folder.setParent(parent);
-        } else {
-            folder.setParent(null);
         }
 
-        return repo.save(folder);
+        return MaterialFolderDTO.from(repo.save(folder));
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        materialService.deleteAllFromFolder(id);
+        repo.deleteById(id);
     }
 
     @Transactional(readOnly = true)

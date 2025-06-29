@@ -2,6 +2,7 @@ package com.mytutorplatform.lessonsservice.controller;
 
 import com.mytutorplatform.lessonsservice.model.MaterialFolder;
 import com.mytutorplatform.lessonsservice.model.response.CreateMaterialFolderRequest;
+import com.mytutorplatform.lessonsservice.model.response.MaterialFolderDTO;
 import com.mytutorplatform.lessonsservice.model.response.MaterialFolderTreeDto;
 import com.mytutorplatform.lessonsservice.service.MaterialFolderService;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class MaterialFoldersController {
     private final MaterialFolderService service;
 
     @PostMapping
-    public ResponseEntity<MaterialFolder> create(@RequestBody CreateMaterialFolderRequest req) {
+    public ResponseEntity<MaterialFolderDTO> create(@RequestBody CreateMaterialFolderRequest req) {
         return ResponseEntity.ok(service.create(req));
     }
 
@@ -38,7 +39,13 @@ public class MaterialFoldersController {
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<MaterialFolder> update(@PathVariable UUID id, @RequestBody CreateMaterialFolderRequest req) {
+    public ResponseEntity<MaterialFolderDTO> update(@PathVariable UUID id, @RequestBody CreateMaterialFolderRequest req) {
         return ResponseEntity.ok(service.update(id, req));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteFolder(@PathVariable UUID id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -23,17 +22,28 @@ public class Material {
     private UUID id;
 
     @Column(nullable = false)
-    private String name;
+    private String title;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AssetType type;
 
     @Column(nullable = false)
-    private String type;
+    private String sourceUrl;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "folder_id")
-    private MaterialFolder folder;
+    private String thumbnailUrl;
+
+    private Integer durationSec;
 
     @ElementCollection
     @CollectionTable(name = "material_tags", joinColumns = @JoinColumn(name = "material_id"))
     @Column(name = "tag")
-    private Set<String> tags = new HashSet<>();
+    private Set<String> tags;
+
+    @Column(name = "folder_id")
+    private UUID folderId;
+
+    public enum AssetType {
+        VIDEO, AUDIO, DOCUMENT, GRAMMAR
+    }
 }

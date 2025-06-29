@@ -10,5 +10,5 @@ import java.util.UUID;
 
 @Repository
 public interface ListeningTaskRepository extends JpaRepository<ListeningTask, UUID>, JpaSpecificationExecutor<ListeningTask> {
-    List<ListeningTask> findByFolderId(UUID folderId);
+    List<ListeningTask> findByMaterialId(UUID materialId);
 }
