@@ -3,7 +3,14 @@ package com.mytutorplatform.lessonsservice.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mytutorplatform.lessonsservice.model.ListeningTask;
 import com.mytutorplatform.lessonsservice.model.Material;
+import com.mytutorplatform.lessonsservice.model.request.AttemptDto;
 import com.mytutorplatform.lessonsservice.model.request.CreateListeningTaskRequest;
+import com.mytutorplatform.lessonsservice.model.request.GrammarScoreRequest;
+import com.mytutorplatform.lessonsservice.model.response.GapResultDto;
+import com.mytutorplatform.lessonsservice.model.response.GrammarScoreResponse;
+import com.mytutorplatform.lessonsservice.model.response.ItemScoreDto;
+import com.mytutorplatform.lessonsservice.service.GrammarItemService;
+import com.mytutorplatform.lessonsservice.service.GrammarScoringService;
 import com.mytutorplatform.lessonsservice.service.ListeningTaskService;
 import com.mytutorplatform.lessonsservice.service.MaterialService;
 import org.junit.jupiter.api.Test;
@@ -34,6 +41,12 @@ public class MaterialControllerTest {
 
     @MockBean
     private ListeningTaskService listeningTaskService;
+
+    @MockBean
+    private GrammarItemService grammarItemService;
+
+    @MockBean
+    private GrammarScoringService grammarScoringService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -236,5 +249,95 @@ public class MaterialControllerTest {
                 .andExpect(jsonPath("$[1]").value("beginner"))
                 .andExpect(jsonPath("$[2]").value("advanced"))
                 .andExpect(jsonPath("$[3]").value("business"));
+    }
+
+    @Test
+    public void testScoreGrammarItems() throws Exception {
+        // Prepare test data
+        UUID materialId = UUID.randomUUID();
+        UUID grammarItemId1 = UUID.randomUUID();
+        UUID grammarItemId2 = UUID.randomUUID();
+
+        // Create request
+        AttemptDto attempt1 = new AttemptDto();
+        attempt1.setGrammarItemId(grammarItemId1);
+        attempt1.setGapAnswers(Arrays.asList("the", "cat"));
+
+        AttemptDto attempt2 = new AttemptDto();
+        attempt2.setGrammarItemId(grammarItemId2);
+        attempt2.setGapAnswers(Arrays.asList("a", "dog"));
+
+        GrammarScoreRequest request = new GrammarScoreRequest();
+        request.setAttempts(Arrays.asList(attempt1, attempt2));
+
+        // Create response
+        GapResultDto gap1 = GapResultDto.builder()
+                .index(0)
+                .student("the")
+                .correct("the")
+                .isCorrect(true)
+                .build();
+
+        GapResultDto gap2 = GapResultDto.builder()
+                .index(1)
+                .student("cat")
+                .correct("cat")
+                .isCorrect(true)
+                .build();
+
+        GapResultDto gap3 = GapResultDto.builder()
+                .index(0)
+                .student("a")
+                .correct("the")
+                .isCorrect(false)
+                .build();
+
+        GapResultDto gap4 = GapResultDto.builder()
+                .index(1)
+                .student("dog")
+                .correct("dog")
+                .isCorrect(true)
+                .build();
+
+        ItemScoreDto item1 = ItemScoreDto.builder()
+                .grammarItemId(grammarItemId1)
+                .gapResults(Arrays.asList(gap1, gap2))
+                .itemCorrect(true)
+                .build();
+
+        ItemScoreDto item2 = ItemScoreDto.builder()
+                .grammarItemId(grammarItemId2)
+                .gapResults(Arrays.asList(gap3, gap4))
+                .itemCorrect(false)
+                .build();
+
+        GrammarScoreResponse response = GrammarScoreResponse.builder()
+                .materialId(materialId)
+                .totalItems(2)
+                .correctItems(1)
+                .totalGaps(4)
+                .correctGaps(3)
+                .details(Arrays.asList(item1, item2))
+                .build();
+
+        // Mock service methods
+        when(materialService.getMaterialById(materialId)).thenReturn(new Material());
+        when(grammarScoringService.score(eq(materialId), anyList())).thenReturn(response);
+
+        // Perform request and verify response
+        mockMvc.perform(post("/api/materials/{materialId}/score", materialId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.materialId").value(materialId.toString()))
+                .andExpect(jsonPath("$.totalItems").value(2))
+                .andExpect(jsonPath("$.correctItems").value(1))
+                .andExpect(jsonPath("$.totalGaps").value(4))
+                .andExpect(jsonPath("$.correctGaps").value(3))
+                .andExpect(jsonPath("$.details.length()").value(2))
+                .andExpect(jsonPath("$.details[0].grammarItemId").value(grammarItemId1.toString()))
+                .andExpect(jsonPath("$.details[0].itemCorrect").value(true))
+                .andExpect(jsonPath("$.details[1].grammarItemId").value(grammarItemId2.toString()))
+                .andExpect(jsonPath("$.details[1].itemCorrect").value(false));
     }
 }

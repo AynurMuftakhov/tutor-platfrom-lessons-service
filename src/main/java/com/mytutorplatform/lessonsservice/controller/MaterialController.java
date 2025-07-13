@@ -2,7 +2,13 @@ package com.mytutorplatform.lessonsservice.controller;
 
 import com.mytutorplatform.lessonsservice.model.ListeningTask;
 import com.mytutorplatform.lessonsservice.model.Material;
+import com.mytutorplatform.lessonsservice.model.request.CreateGrammarItemRequest;
 import com.mytutorplatform.lessonsservice.model.request.CreateListeningTaskRequest;
+import com.mytutorplatform.lessonsservice.model.request.GrammarScoreRequest;
+import com.mytutorplatform.lessonsservice.model.response.GrammarItemDto;
+import com.mytutorplatform.lessonsservice.model.response.GrammarScoreResponse;
+import com.mytutorplatform.lessonsservice.service.GrammarItemService;
+import com.mytutorplatform.lessonsservice.service.GrammarScoringService;
 import com.mytutorplatform.lessonsservice.service.ListeningTaskService;
 import com.mytutorplatform.lessonsservice.service.MaterialService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +26,8 @@ public class MaterialController {
 
     private final MaterialService service;
     private final ListeningTaskService listeningTaskService;
+    private final GrammarItemService grammarItemService;
+    private final GrammarScoringService grammarScoringService;
 
     @GetMapping
     public Page<Material> getMaterials(
@@ -73,9 +81,34 @@ public class MaterialController {
         return ResponseEntity.ok(createdTask);
     }
 
+    @PostMapping("/{id}/grammar-items")
+    public GrammarItemDto createGrammarItemForMaterial(@PathVariable UUID id, @RequestBody CreateGrammarItemRequest grammarItem) {
+        return grammarItemService.createItem(id, grammarItem);
+    }
+
+    @GetMapping("/{id}/grammar-items")
+    public List<GrammarItemDto> getGrammarItemsForMaterial(@PathVariable UUID id) {
+        return grammarItemService.getItemsByMaterialId(id);
+    }
+
     @GetMapping("/tags")
     public ResponseEntity<List<String>> getAllTags() {
         List<String> tags = service.getAllTags();
         return ResponseEntity.ok(tags);
+    }
+
+    /**
+     * Scores a student's attempts at grammar items in a material.
+     *
+     * @param materialId The ID of the material containing the grammar items
+     * @param request The request containing the student's attempts
+     * @return A detailed score report
+     */
+    @PostMapping("/{materialId}/score")
+    public ResponseEntity<GrammarScoreResponse> scoreGrammarItems(
+            @PathVariable UUID materialId,
+            @RequestBody GrammarScoreRequest request) {
+        GrammarScoreResponse response = grammarScoringService.score(materialId, request.getAttempts());
+        return ResponseEntity.ok(response);
     }
 }
