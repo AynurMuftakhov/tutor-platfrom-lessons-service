@@ -23,6 +23,8 @@ public class GrammarItem {
     private UUID materialId;
 
     private Integer sortOrder;
+
+    @Enumerated(EnumType.STRING)
     private Type type;
 
     @Column(columnDefinition = "TEXT")
@@ -34,7 +36,16 @@ public class GrammarItem {
     @Column(columnDefinition = "TEXT")
     private String answer;
 
+    @Column(columnDefinition = "TEXT")
+    private String question;
+
+    @Column(columnDefinition = "TEXT[]")
+    private String[] options;
+
+    @Column(name = "correct_index")
+    private Short correctIndex;
+
     public enum Type {
-        GAP_FILL
+        GAP_FILL, MULTIPLE_CHOICE
     }
 }

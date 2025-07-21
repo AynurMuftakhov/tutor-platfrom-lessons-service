@@ -274,28 +274,28 @@ public class MaterialControllerTest {
         GapResultDto gap1 = GapResultDto.builder()
                 .index(0)
                 .student("the")
-                .correct("the")
+                .correctAnswer("the")
                 .isCorrect(true)
                 .build();
 
         GapResultDto gap2 = GapResultDto.builder()
                 .index(1)
                 .student("cat")
-                .correct("cat")
+                .correctAnswer("cat")
                 .isCorrect(true)
                 .build();
 
         GapResultDto gap3 = GapResultDto.builder()
                 .index(0)
                 .student("a")
-                .correct("the")
+                .correctAnswer("the")
                 .isCorrect(false)
                 .build();
 
         GapResultDto gap4 = GapResultDto.builder()
                 .index(1)
                 .student("dog")
-                .correct("dog")
+                .correctAnswer("dog")
                 .isCorrect(true)
                 .build();
 

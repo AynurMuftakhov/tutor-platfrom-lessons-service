@@ -15,6 +15,6 @@ import lombok.NoArgsConstructor;
 public class GapResultDto {
     private int index;
     private String student;
-    private String correct;
+    private String correctAnswer;
     private boolean isCorrect;
 }

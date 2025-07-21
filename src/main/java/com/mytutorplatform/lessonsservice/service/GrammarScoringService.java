@@ -1,9 +1,7 @@
 package com.mytutorplatform.lessonsservice.service;
 
 import com.mytutorplatform.lessonsservice.model.GrammarItem;
-import com.mytutorplatform.lessonsservice.model.Material;
 import com.mytutorplatform.lessonsservice.model.request.AttemptDto;
-import com.mytutorplatform.lessonsservice.model.request.GrammarScoreRequest;
 import com.mytutorplatform.lessonsservice.model.response.GapResultDto;
 import com.mytutorplatform.lessonsservice.model.response.GrammarScoreResponse;
 import com.mytutorplatform.lessonsservice.model.response.ItemScoreDto;
@@ -41,7 +39,7 @@ public class GrammarScoringService {
 
         // Load all grammar items for the material
         List<GrammarItem> grammarItems = grammarItemRepository.findByMaterialId(materialId);
-        
+
         if (grammarItems.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
                     "No grammar items found for material with id: " + materialId);
@@ -62,51 +60,82 @@ public class GrammarScoringService {
 
         for (AttemptDto attempt : attempts) {
             GrammarItem item = grammarItemMap.get(attempt.getGrammarItemId());
-            
-            // Parse the answer string into a 2D list of acceptable answers
-            List<List<String>> acceptableAnswers = AnswerParser.parseAnswers(item.getAnswer());
-            
-            // Validate that the number of gap answers matches the number of gaps
-            if (attempt.getGapAnswers().size() != acceptableAnswers.size()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
-                        "Number of gap answers (" + attempt.getGapAnswers().size() + 
-                        ") does not match number of gaps (" + acceptableAnswers.size() + 
-                        ") for grammar item with id: " + item.getId());
-            }
 
-            // Score each gap
+            boolean itemCorrect;
             List<GapResultDto> gapResults = new ArrayList<>();
-            boolean itemCorrect = true;
-            
-            for (int i = 0; i < attempt.getGapAnswers().size(); i++) {
-                String studentAnswer = attempt.getGapAnswers().get(i);
-                List<String> correctAnswers = acceptableAnswers.get(i);
-                boolean isCorrect = AnswerComparator.isCorrect(studentAnswer, correctAnswers);
 
-                // For the response, we'll show the first correct answer as "the correct answer"
-                String correctAnswer = isCorrect? studentAnswer : correctAnswers.isEmpty() ? "" : correctAnswers.get(0);
-                
+            if (item.getType() == GrammarItem.Type.MULTIPLE_CHOICE) {
+                // Score multiple choice item
+                if (attempt.getChosenIndex() == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
+                            "Missing chosenIndex for MULTIPLE_CHOICE item with id: " + item.getId());
+                }
+
+                itemCorrect = (attempt.getChosenIndex().equals(item.getCorrectIndex()));
+
+                // Add a single "gap" result for the multiple choice item
                 gapResults.add(GapResultDto.builder()
-                        .index(i)
-                        .student(studentAnswer)
-                        .correct(correctAnswer)
-                        .isCorrect(isCorrect)
+                        .index(0)
+                        .student(attempt.getChosenIndex().toString())
+                        .correctAnswer(item.getCorrectIndex().toString())
+                        .isCorrect(itemCorrect)
                         .build());
-                
+
                 totalGaps++;
-                if (isCorrect) {
+                if (itemCorrect) {
                     correctGaps++;
-                } else {
-                    itemCorrect = false;
+                }
+            } else {
+                // Score gap fill item
+                // Parse the answer string into a 2D list of acceptable answers
+                List<List<String>> acceptableAnswers = AnswerParser.parseAnswers(item.getAnswer());
+
+                // Validate that the number of gap answers matches the number of gaps
+                if (attempt.getGapAnswers() == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
+                            "Missing gapAnswers for GAP_FILL item with id: " + item.getId());
+                }
+
+                if (attempt.getGapAnswers().size() != acceptableAnswers.size()) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
+                            "Number of gap answers (" + attempt.getGapAnswers().size() + 
+                            ") does not match number of gaps (" + acceptableAnswers.size() + 
+                            ") for grammar item with id: " + item.getId());
+                }
+
+                // Score each gap
+                itemCorrect = true;
+
+                for (int i = 0; i < attempt.getGapAnswers().size(); i++) {
+                    String studentAnswer = attempt.getGapAnswers().get(i);
+                    List<String> correctAnswers = acceptableAnswers.get(i);
+                    boolean isCorrect = AnswerComparator.isCorrect(studentAnswer, correctAnswers);
+
+                    // For the response, we'll show the first correct answer as "the correct answer"
+                    String correctAnswer = isCorrect? studentAnswer : correctAnswers.isEmpty() ? "" : correctAnswers.get(0);
+
+                    gapResults.add(GapResultDto.builder()
+                            .index(i)
+                            .student(studentAnswer)
+                            .correctAnswer(correctAnswer)
+                            .isCorrect(isCorrect)
+                            .build());
+
+                    totalGaps++;
+                    if (isCorrect) {
+                        correctGaps++;
+                    } else {
+                        itemCorrect = false;
+                    }
                 }
             }
-            
+
             itemScores.add(ItemScoreDto.builder()
                     .grammarItemId(item.getId())
                     .gapResults(gapResults)
                     .itemCorrect(itemCorrect)
                     .build());
-            
+
             if (itemCorrect) {
                 correctItems++;
             }
@@ -135,31 +164,31 @@ public class GrammarScoringService {
         Set<UUID> attemptedItemIds = attempts.stream()
                 .map(AttemptDto::getGrammarItemId)
                 .collect(Collectors.toSet());
-        
+
         Set<UUID> missingItemIds = new HashSet<>(grammarItemIds);
         missingItemIds.removeAll(attemptedItemIds);
-        
+
         if (!missingItemIds.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
                     "Missing attempts for grammar items with ids: " + missingItemIds);
         }
-        
+
         // Check for extra grammar items
         Set<UUID> extraItemIds = new HashSet<>(attemptedItemIds);
         extraItemIds.removeAll(grammarItemIds);
-        
+
         if (!extraItemIds.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
                     "Attempts for non-existent grammar items with ids: " + extraItemIds);
         }
-        
+
         // Check for duplicate grammar items
         Set<UUID> uniqueAttemptedItemIds = new HashSet<>();
         Set<UUID> duplicateItemIds = attempts.stream()
                 .map(AttemptDto::getGrammarItemId)
                 .filter(id -> !uniqueAttemptedItemIds.add(id))
                 .collect(Collectors.toSet());
-        
+
         if (!duplicateItemIds.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
                     "Duplicate attempts for grammar items with ids: " + duplicateItemIds);

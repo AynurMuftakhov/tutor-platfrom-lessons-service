@@ -4,13 +4,16 @@ import com.mytutorplatform.lessonsservice.model.ListeningTask;
 import com.mytutorplatform.lessonsservice.model.Material;
 import com.mytutorplatform.lessonsservice.model.request.CreateGrammarItemRequest;
 import com.mytutorplatform.lessonsservice.model.request.CreateListeningTaskRequest;
+import com.mytutorplatform.lessonsservice.model.request.CreateMultipleChoiceItemRequest;
 import com.mytutorplatform.lessonsservice.model.request.GrammarScoreRequest;
 import com.mytutorplatform.lessonsservice.model.response.GrammarItemDto;
 import com.mytutorplatform.lessonsservice.model.response.GrammarScoreResponse;
+import com.mytutorplatform.lessonsservice.model.response.MultipleChoiceItemDto;
 import com.mytutorplatform.lessonsservice.service.GrammarItemService;
 import com.mytutorplatform.lessonsservice.service.GrammarScoringService;
 import com.mytutorplatform.lessonsservice.service.ListeningTaskService;
 import com.mytutorplatform.lessonsservice.service.MaterialService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -86,9 +89,16 @@ public class MaterialController {
         return grammarItemService.createItem(id, grammarItem);
     }
 
+    @PostMapping("/{id}/multiple-choice-items")
+    public MultipleChoiceItemDto createMultipleChoiceItemForMaterial(
+            @PathVariable UUID id, 
+            @Valid @RequestBody CreateMultipleChoiceItemRequest request) {
+        return grammarItemService.createMultipleChoiceItem(id, request);
+    }
+
     @GetMapping("/{id}/grammar-items")
     public List<GrammarItemDto> getGrammarItemsForMaterial(@PathVariable UUID id) {
-        return grammarItemService.getItemsByMaterialId(id);
+        return grammarItemService.getGrammarItemDtosByMaterialId(id);
     }
 
     @GetMapping("/tags")
