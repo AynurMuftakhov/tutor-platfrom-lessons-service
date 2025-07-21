@@ -48,6 +48,6 @@ public class LessonsSpecificationsBuilder {
     }
 
     public static Specification<Lesson> currentLessonParams(UUID tutorId, UUID studentId, OffsetDateTime currentDate, List<LessonStatus> statuses) {
-        return lessonsByParams(tutorId, studentId, statuses, null, null, currentDate.plusMinutes(5));
+        return lessonsByParams(tutorId, studentId, statuses, null, null, currentDate.plusMinutes(15));
     }
 }

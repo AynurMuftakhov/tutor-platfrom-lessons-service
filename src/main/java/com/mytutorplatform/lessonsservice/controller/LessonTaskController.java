@@ -48,9 +48,17 @@ public class LessonTaskController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/listening-tasks/{taskId}")
+    public ResponseEntity<ListeningTask> updateListeningTask(
+            @PathVariable UUID taskId,
+            @RequestBody CreateListeningTaskRequest request) {
+        ListeningTask updatedTask = listeningTaskService.updateListeningTask(taskId, request);
+        return ResponseEntity.ok(updatedTask);
+    }
+
     @GetMapping("/listening-tasks")
-    public List<ListeningTask> getAllListeningTasks() {
-        return listeningTaskService.getAllListeningTasks();
+    public List<ListeningTask> getAllListeningTasks(@RequestParam(required = false) UUID materialId) {
+        return listeningTaskService.getAllListeningTasks(materialId);
     }
 
     @PostMapping("/listening-tasks")

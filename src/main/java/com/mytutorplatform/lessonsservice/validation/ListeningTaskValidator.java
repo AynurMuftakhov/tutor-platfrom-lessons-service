@@ -11,7 +11,6 @@ public class ListeningTaskValidator {
 
     public void validateCreate(CreateListeningTaskRequest request) {
         validateTimeRange(request);
-        validateSourceUrl(request);
     }
 
     private void validateTimeRange(CreateListeningTaskRequest request) {
@@ -25,22 +24,6 @@ public class ListeningTaskValidator {
         
         if (request.getStartSec() < 0) {
             throw new IllegalArgumentException("Start time cannot be negative");
-        }
-    }
-
-    private void validateSourceUrl(CreateListeningTaskRequest request) {
-        if (request.getSourceUrl() == null || request.getSourceUrl().trim().isEmpty()) {
-           return;
-        }
-        
-        try {
-            URL url = new URL(request.getSourceUrl());
-            String protocol = url.getProtocol();
-            if (!protocol.equals("https")) {
-                throw new IllegalArgumentException("Source URL must use HTTPS protocol");
-            }
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException("Invalid source URL: " + e.getMessage());
         }
     }
 }
