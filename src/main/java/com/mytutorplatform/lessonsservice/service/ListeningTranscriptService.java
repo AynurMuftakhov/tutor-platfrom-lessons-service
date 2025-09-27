@@ -47,7 +47,7 @@ public class ListeningTranscriptService {
             throw new IllegalArgumentException("No vocabulary words resolved");
         }
 
-        int durationTarget = Optional.ofNullable(req.durationSecTarget()).orElse(60);
+        Integer maxWordsOverride = req.maxWords();
         String language = defaultIfBlank(req.language(), "en-US");
         String cefr = defaultIfBlank(req.cefr(), "B1");
         String theme = defaultIfBlank(req.theme(), "general topic");
@@ -55,8 +55,8 @@ public class ListeningTranscriptService {
 
         String wordList = words.stream().map(VocabularyClient.VocabWord::getText).collect(Collectors.joining(", "));
 
-        String systemMessage = buildSystemMessage(language, cefr, theme, durationTarget, wordList, style);
-        String userMessage = buildUserMessage(cefr);
+        String systemMessage = buildSystemMessage(language, cefr, theme, maxWordsOverride, wordList, style);
+        String userMessage = buildUserMessage(cefr, req.maxWords() != null ? req.maxWords() : maxWords);
 
         OpenAiClient.TranscriptPromptPayload payload = OpenAiClient.TranscriptPromptPayload.builder()
                 .systemMessage(systemMessage)
@@ -77,7 +77,7 @@ public class ListeningTranscriptService {
         metadata.put("language", language);
         metadata.put("theme", theme);
         metadata.put("cefr", cefr);
-        metadata.put("durationSecTarget", durationTarget);
+        if (maxWordsOverride != null) metadata.put("maxWords", maxWordsOverride);
 
         persist(transcriptId, teacherId, text, words, coverage.coverageMap, metadata);
 
@@ -152,14 +152,15 @@ public class ListeningTranscriptService {
         repository.save(lt);
     }
 
-    private String buildSystemMessage(String language, String cefr, String theme, int durationSecTarget, String wordList, String style) {
+    private String buildSystemMessage(String language, String cefr, String theme, Integer maxWordsOverride, String wordList, String style) {
         StringBuilder sb = new StringBuilder();
         sb.append("You are an English listening content writer. Produce a short monologue in ")
                 .append(language)
                 .append(", CEFR ").append(cefr)
                 .append(", about ").append(theme).append(". ")
-                .append("Target ").append(durationSecTarget).append(" seconds at ~").append(targetWpm)
-                .append(" wpm (max ").append(maxWords).append(" words). ")
+                .append("Aim for approximately ")
+                .append(maxWordsOverride != null ? maxWordsOverride : maxWords)
+                .append(" words (do not exceed by much). ")
                 .append("Must include these words: ").append(wordList).append(". ")
                 .append("Do not include translations, lists, or markup. Output plain text only.");
         if (StringUtils.hasText(style)) {
@@ -168,9 +169,9 @@ public class ListeningTranscriptService {
         return sb.toString();
     }
 
-    private String buildUserMessage(String cefr) {
+    private String buildUserMessage(String cefr, Integer maxWords) {
         return "Generate a cohesive, natural-sounding paragraph that stays on topic and uses every target word exactly as normal words in context (not as a list). Prefer present/past simple tenses and everyday vocabulary appropriate to CEFR "
-                + cefr + ". Keep sentences 8–18 words.";
+                + cefr + ". Keep maximum words approximately " + maxWords + " words.";
     }
 
     private String postProcessText(String input) {
@@ -200,14 +201,42 @@ public class ListeningTranscriptService {
     }
 
     private CoverageResult computeCoverage(String transcript, List<VocabularyClient.VocabWord> words) {
-        Set<String> tokens = tokenizeToSet(transcript);
+        String normTranscript = Optional.ofNullable(transcript).orElse("").toLowerCase(Locale.ROOT);
+        Set<String> tokens = tokenizeToSet(normTranscript);
         Map<String, Boolean> map = new LinkedHashMap<>();
         for (VocabularyClient.VocabWord w : words) {
-            String target = normalize(w.getText());
-            boolean present = containsWithPluralNormalization(tokens, target);
-            map.put(w.getText(), present);
+            String original = Optional.ofNullable(w.getText()).orElse("");
+            String target = normalize(original);
+            boolean present;
+            if (target.contains(" ")) {
+                // phrase matching: collapse spaces, punctuation-insensitive
+                String pattern = target.replaceAll("\\s+", " ").trim();
+                present = containsPhrase(normTranscript, pattern);
+            } else {
+                present = containsWithPluralNormalization(tokens, target);
+            }
+            map.put(original, present);
         }
         return new CoverageResult(map);
+    }
+
+    private boolean containsPhrase(String normTranscript, String phrase) {
+        // Normalize transcript by replacing non-letters with single spaces and collapsing spaces
+        String cleaned = normTranscript.replaceAll("[^\\p{L}']+", " ").replaceAll(" +", " ").trim();
+        String cleanedPhrase = phrase.replaceAll("[^\\p{L}']+", " ").replaceAll(" +", " ").trim();
+        if (cleanedPhrase.isEmpty()) return false;
+        // exact substring on word-normalized text; also try simple plural normalization on last token
+        if (cleaned.contains(cleanedPhrase)) return true;
+        // Try plural/singular variant for last word of the phrase
+        String[] parts = cleanedPhrase.split(" ");
+        String last = parts[parts.length - 1];
+        String variant = last;
+        if (last.endsWith("es")) variant = last.substring(0, last.length() - 2);
+        else if (last.endsWith("s")) variant = last.substring(0, last.length() - 1);
+        else variant = last + "s"; // try plural
+        parts[parts.length - 1] = variant;
+        String alt = String.join(" ", parts);
+        return cleaned.contains(alt);
     }
 
     private Set<String> tokenizeToSet(String text) {

@@ -6,7 +6,7 @@ import java.util.UUID;
 
 public record TranscriptGenerateRequest(
         List<UUID> wordIds,
-        Integer durationSecTarget,
+        Integer maxWords,
         String theme,
         String cefr,
         String language,
