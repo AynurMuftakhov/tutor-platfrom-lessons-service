@@ -31,8 +31,9 @@ public class ListeningTranscriptService {
     private final VocabularyClient vocabularyClient;
     private final OpenAiClient openAiClient;
     private final ObjectMapper objectMapper;
+  private final EnglishCoverageEngine englishCoverageEngine;
 
-    @Value("${listening.transcript.targetWpm:140}")
+  @Value("${listening.transcript.targetWpm:140}")
     private int targetWpm;
 
     @Value("${listening.transcript.maxWords:220}")
@@ -201,67 +202,13 @@ public class ListeningTranscriptService {
     }
 
     private CoverageResult computeCoverage(String transcript, List<VocabularyClient.VocabWord> words) {
-        String normTranscript = Optional.ofNullable(transcript).orElse("").toLowerCase(Locale.ROOT);
-        Set<String> tokens = tokenizeToSet(normTranscript);
-        Map<String, Boolean> map = new LinkedHashMap<>();
-        for (VocabularyClient.VocabWord w : words) {
-            String original = Optional.ofNullable(w.getText()).orElse("");
-            String target = normalize(original);
-            boolean present;
-            if (target.contains(" ")) {
-                // phrase matching: collapse spaces, punctuation-insensitive
-                String pattern = target.replaceAll("\\s+", " ").trim();
-                present = containsPhrase(normTranscript, pattern);
-            } else {
-                present = containsWithPluralNormalization(tokens, target);
-            }
-            map.put(original, present);
-        }
-        return new CoverageResult(map);
-    }
+      List<String> targets = words.stream()
+              .map(VocabularyClient.VocabWord::getText)
+              .filter(Objects::nonNull)
+              .collect(Collectors.toList());
 
-    private boolean containsPhrase(String normTranscript, String phrase) {
-        // Normalize transcript by replacing non-letters with single spaces and collapsing spaces
-        String cleaned = normTranscript.replaceAll("[^\\p{L}']+", " ").replaceAll(" +", " ").trim();
-        String cleanedPhrase = phrase.replaceAll("[^\\p{L}']+", " ").replaceAll(" +", " ").trim();
-        if (cleanedPhrase.isEmpty()) return false;
-        // exact substring on word-normalized text; also try simple plural normalization on last token
-        if (cleaned.contains(cleanedPhrase)) return true;
-        // Try plural/singular variant for last word of the phrase
-        String[] parts = cleanedPhrase.split(" ");
-        String last = parts[parts.length - 1];
-        String variant = last;
-        if (last.endsWith("es")) variant = last.substring(0, last.length() - 2);
-        else if (last.endsWith("s")) variant = last.substring(0, last.length() - 1);
-        else variant = last + "s"; // try plural
-        parts[parts.length - 1] = variant;
-        String alt = String.join(" ", parts);
-        return cleaned.contains(alt);
-    }
-
-    private Set<String> tokenizeToSet(String text) {
-        Set<String> set = new HashSet<>();
-        Matcher m = WORD_PATTERN.matcher(Optional.ofNullable(text).orElse(""));
-        while (m.find()) {
-            set.add(normalize(m.group()));
-        }
-        return set;
-    }
-
-    private String normalize(String s) {
-        return Optional.ofNullable(s).orElse("").toLowerCase(Locale.ROOT);
-    }
-
-    private boolean containsWithPluralNormalization(Set<String> tokens, String target) {
-        if (tokens.contains(target)) return true;
-        // singularize common forms
-        String singular = target;
-        if (target.endsWith("es")) singular = target.substring(0, target.length() - 2);
-        else if (target.endsWith("s")) singular = target.substring(0, target.length() - 1);
-        if (tokens.contains(singular)) return true;
-        // also check plural form of target
-        String plural = target.endsWith("s") ? target : target + "s";
-        return tokens.contains(plural) || tokens.contains(plural + "es");
+      Map<String, Boolean> map = englishCoverageEngine.computeCoverage(postProcessText(transcript), targets);
+      return new CoverageResult(map);
     }
 
     private List<VocabularyClient.VocabWord> readWordsFromJson(String json) {
