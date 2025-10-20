@@ -109,11 +109,8 @@ public class LessonContentService {
                 return true;
             }).collect(Collectors.toList());
         }
-        // Manual pagination on filtered list
-        int from = Math.min(page * size, filtered.size());
-        int to = Math.min(from + size, filtered.size());
-        List<LessonContent> slice = filtered.subList(from, to);
-        return new PageImpl<>(slice, pageable, filtered.size());
+
+        return new PageImpl<>(filtered, pageable, basePage.getTotalElements());
     }
 
     private void validate(JsonNode layout, JsonNode content) {
