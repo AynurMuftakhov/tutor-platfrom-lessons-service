@@ -5,6 +5,8 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -30,6 +32,35 @@ public class ListeningTask {
 
     @Column(name = "material_id")
     private UUID materialId;
+
+    @Column(name = "transcript_id")
+    private UUID transcriptId;
+
+    @Lob
+    @Column(name = "transcript_text", columnDefinition = "text")
+    private String transcriptText;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "listening_task_target_words", joinColumns = @JoinColumn(name = "task_id"))
+    @Column(name = "word")
+    private List<String> targetWords = new ArrayList<>();
+
+    @Column(name = "audio_url")
+    private String audioUrl;
+
+    @Column(name = "language_code")
+    private String language;
+
+    @Column(name = "difficulty_level")
+    private String difficulty;
+
+    @Lob
+    @Column(name = "notes", columnDefinition = "text")
+    private String notes;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private ListeningTaskStatus status = ListeningTaskStatus.DRAFT;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

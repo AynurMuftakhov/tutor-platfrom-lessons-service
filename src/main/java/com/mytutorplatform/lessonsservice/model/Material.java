@@ -44,6 +44,10 @@ public class Material {
     private UUID folderId;
 
     public enum AssetType {
-        VIDEO, AUDIO, DOCUMENT, GRAMMAR
+        VIDEO,
+        AUDIO,
+        DOCUMENT,
+        GRAMMAR,
+        LISTENING
     }
 }

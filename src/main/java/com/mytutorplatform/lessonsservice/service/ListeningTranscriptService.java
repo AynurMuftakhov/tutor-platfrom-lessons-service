@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mytutorplatform.lessonsservice.model.ListeningTranscript;
 import com.mytutorplatform.lessonsservice.model.request.TranscriptGenerateRequest;
+import com.mytutorplatform.lessonsservice.model.request.TranscriptManualCreateRequest;
 import com.mytutorplatform.lessonsservice.model.request.TranscriptUpdateRequest;
 import com.mytutorplatform.lessonsservice.model.request.ValidateCoverageRequest;
 import com.mytutorplatform.lessonsservice.model.response.TranscriptResponse;
@@ -91,6 +92,41 @@ public class ListeningTranscriptService {
         );
     }
 
+    public TranscriptResponse createManual(TranscriptManualCreateRequest req, UUID teacherId) {
+        if (req == null || !StringUtils.hasText(req.transcript())) {
+            throw new IllegalArgumentException("transcript is required");
+        }
+
+        String language = defaultIfBlank(req.language(), "en-US");
+        String cefr = defaultIfBlank(req.cefr(), "B1");
+        String theme = StringUtils.hasText(req.theme()) ? req.theme() : null;
+        String style = req.style();
+
+        String text = postProcessText(req.transcript());
+        List<VocabularyClient.VocabWord> words = req.wordIds() == null || req.wordIds().isEmpty()
+                ? List.of()
+                : vocabularyClient.getWordsByIds(req.wordIds());
+
+        CoverageResult coverage = computeCoverage(text, words);
+        int estimatedSec = Math.max(1, Math.round((float) countWords(text) * 60f / (float) targetWpm));
+
+        UUID transcriptId = UUID.randomUUID();
+
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("language", language);
+        metadata.put("cefr", cefr);
+        if (theme != null) {
+            metadata.put("theme", theme);
+        }
+        if (StringUtils.hasText(style)) {
+            metadata.put("style", style);
+        }
+
+        persist(transcriptId, teacherId, text, words, coverage.coverageMap, metadata);
+
+        return new TranscriptResponse(transcriptId, text, coverage.coverageMap, estimatedSec, metadata);
+    }
+
     public TranscriptResponse update(UUID transcriptId, TranscriptUpdateRequest req, UUID teacherId) {
         ListeningTranscript lt = repository.findById(transcriptId)
                 .orElseThrow(() -> new EntityNotFoundException("Transcript not found"));
@@ -110,12 +146,10 @@ public class ListeningTranscriptService {
         return new TranscriptResponse(lt.getTranscriptId(), text, coverage.coverageMap, estimatedSec, metadata);
     }
 
-    public TranscriptResponse get(UUID transcriptId, UUID teacherId) {
+    public TranscriptResponse get(UUID transcriptId) {
         ListeningTranscript lt = repository.findById(transcriptId)
                 .orElseThrow(() -> new EntityNotFoundException("Transcript not found"));
-        if (!lt.getTeacherId().equals(teacherId)) {
-            throw new IllegalArgumentException("Transcript does not belong to teacher");
-        }
+
         List<VocabularyClient.VocabWord> words = readWordsFromJson(lt.getWordsJson());
         CoverageResult coverage = computeCoverage(lt.getText(), words);
         Map<String, Object> metadata = readMetadataFromJson(lt.getMetadataJson());
@@ -129,7 +163,7 @@ public class ListeningTranscriptService {
         }
         List<VocabularyClient.VocabWord> words = vocabularyClient.getWordsByIds(req.wordIds());
         if (words.isEmpty()) {
-            throw new IllegalArgumentException("No vocabulary words resolved");
+            return new ValidateCoverageResponse(Map.of(), List.of());
         }
         CoverageResult coverage = computeCoverage(postProcessText(req.transcript()), words);
         List<String> missing = coverage.coverageMap.entrySet().stream()
@@ -206,6 +240,10 @@ public class ListeningTranscriptService {
               .map(VocabularyClient.VocabWord::getText)
               .filter(Objects::nonNull)
               .collect(Collectors.toList());
+
+      if (targets.isEmpty()) {
+          return new CoverageResult(Collections.emptyMap());
+      }
 
       Map<String, Boolean> map = englishCoverageEngine.computeCoverage(postProcessText(transcript), targets);
       return new CoverageResult(map);

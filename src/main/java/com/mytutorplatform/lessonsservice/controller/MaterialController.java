@@ -1,16 +1,21 @@
 package com.mytutorplatform.lessonsservice.controller;
 
+import com.mytutorplatform.lessonsservice.mapper.ListeningTaskMapper;
 import com.mytutorplatform.lessonsservice.model.ListeningTask;
 import com.mytutorplatform.lessonsservice.model.Material;
 import com.mytutorplatform.lessonsservice.model.request.CreateGrammarItemRequest;
 import com.mytutorplatform.lessonsservice.model.request.CreateListeningTaskRequest;
 import com.mytutorplatform.lessonsservice.model.request.GrammarScoreRequest;
+import com.mytutorplatform.lessonsservice.model.request.ListeningTaskAudioUpdateRequest;
 import com.mytutorplatform.lessonsservice.model.response.GrammarItemDto;
 import com.mytutorplatform.lessonsservice.model.response.GrammarScoreResponse;
+import com.mytutorplatform.lessonsservice.model.response.ListeningTaskDTO;
 import com.mytutorplatform.lessonsservice.service.GrammarItemService;
 import com.mytutorplatform.lessonsservice.service.GrammarScoringService;
+import com.mytutorplatform.lessonsservice.service.ListeningAudioJobService;
 import com.mytutorplatform.lessonsservice.service.ListeningTaskService;
 import com.mytutorplatform.lessonsservice.service.MaterialService;
+import com.mytutorplatform.lessonsservice.repository.ListeningTaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +33,7 @@ public class MaterialController {
     private final ListeningTaskService listeningTaskService;
     private final GrammarItemService grammarItemService;
     private final GrammarScoringService grammarScoringService;
+    private final ListeningTaskMapper listeningTaskMapper;
 
     @GetMapping
     public Page<Material> getMaterials(
@@ -66,19 +72,51 @@ public class MaterialController {
     }
 
     @GetMapping("/{id}/tasks")
-    public ResponseEntity<List<ListeningTask>> getTasksForMaterial(@PathVariable UUID id) {
+    public ResponseEntity<List<ListeningTaskDTO>> getTasksForMaterial(@PathVariable UUID id) {
         List<ListeningTask> tasks = service.getTasksForMaterial(id);
-        return ResponseEntity.ok(tasks);
+        return ResponseEntity.ok(listeningTaskMapper.mapList(tasks));
     }
 
     @PostMapping("/{id}/tasks")
-    public ResponseEntity<ListeningTask> createTaskForMaterial(
+    public ResponseEntity<ListeningTaskDTO> createTaskForMaterial(
             @PathVariable UUID id,
             @RequestBody CreateListeningTaskRequest request) {
-        // Ensure the request has the material ID set
         request.setMaterialId(id);
         ListeningTask createdTask = listeningTaskService.createListeningTask(request);
-        return ResponseEntity.ok(createdTask);
+        return ResponseEntity.ok(listeningTaskMapper.map(createdTask));
+    }
+
+    @PatchMapping("/{materialId}/tasks/{taskId}")
+    public ResponseEntity<ListeningTaskDTO> updateTaskForMaterial(
+            @PathVariable UUID materialId,
+            @PathVariable UUID taskId,
+            @RequestBody CreateListeningTaskRequest request) {
+        request.setMaterialId(materialId);
+        ListeningTask updatedTask = listeningTaskService.updateListeningTask(taskId, request);
+        return ResponseEntity.ok(listeningTaskMapper.map(updatedTask));
+    }
+
+    @DeleteMapping("/{materialId}/tasks/{taskId}")
+    public ResponseEntity<Void> deleteTaskForMaterial(
+            @PathVariable UUID materialId,
+            @PathVariable UUID taskId) {
+        listeningTaskService.deleteListeningTask(taskId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Optional: Attach audio to a listening task by jobId or direct URL + voice
+    @PostMapping("/{materialId}/tasks/{taskId}/audio")
+    public ResponseEntity<ListeningTaskDTO> updateTaskAudio(
+            @PathVariable UUID materialId,
+            @PathVariable UUID taskId,
+            @RequestBody ListeningTaskAudioUpdateRequest request) {
+        ListeningTask updated;
+        if (request.getJobId() != null) {
+            updated = listeningTaskService.updateTaskAudioWithJob(materialId, taskId, request.getJobId());
+        } else {
+            updated = listeningTaskService.updateTaskAudioDirect(materialId, taskId, request.getAudioUrl(), request.getVoice(), request.getLanguage());
+        }
+        return ResponseEntity.ok(listeningTaskMapper.map(updated));
     }
 
     @PostMapping("/{id}/grammar-items")

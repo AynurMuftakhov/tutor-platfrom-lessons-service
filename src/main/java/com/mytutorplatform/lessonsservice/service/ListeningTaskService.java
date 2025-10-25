@@ -3,8 +3,9 @@ package com.mytutorplatform.lessonsservice.service;
 import com.mytutorplatform.lessonsservice.mapper.ListeningTaskMapper;
 import com.mytutorplatform.lessonsservice.model.Lesson;
 import com.mytutorplatform.lessonsservice.model.ListeningTask;
-import com.mytutorplatform.lessonsservice.model.Material;
+import com.mytutorplatform.lessonsservice.model.ListeningTaskStatus;
 import com.mytutorplatform.lessonsservice.model.request.CreateListeningTaskRequest;
+import com.mytutorplatform.lessonsservice.model.request.ListeningVoiceConfigRequest;
 import com.mytutorplatform.lessonsservice.repository.LessonRepository;
 import com.mytutorplatform.lessonsservice.repository.ListeningTaskRepository;
 import com.mytutorplatform.lessonsservice.repository.MaterialRepository;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -28,6 +30,7 @@ public class ListeningTaskService {
     private final MaterialRepository materialRepository;
     private final ListeningTaskValidator listeningTaskValidator;
     private final ListeningTaskMapper listeningTaskMapper;
+    private final ListeningAudioJobService audioJobService;
 
     @Transactional
     public ListeningTask createListeningTask(CreateListeningTaskRequest request) {
@@ -40,6 +43,7 @@ public class ListeningTaskService {
         }
 
         ListeningTask listeningTask = listeningTaskMapper.map(request);
+        applyDefaults(listeningTask);
 
         return listeningTaskRepository.save(listeningTask);
     }
@@ -55,24 +59,18 @@ public class ListeningTaskService {
                     .orElseThrow(() -> new EntityNotFoundException("Material not found with id: " + request.getMaterialId()));
         }
 
-        if (request.getTitle() != null) {
-            existingTask.setTitle(request.getTitle());
+        listeningTaskMapper.update(existingTask, request);
+
+        // If audioUrl is provided (not null) and status not provided in request, auto-transition to READY
+        if (request.getAudioUrl() != null && request.getStatus() == null) {
+            if (request.getAudioUrl().isBlank()) {
+                // if blank provided, keep current status
+            } else {
+                existingTask.setStatus(ListeningTaskStatus.READY);
+            }
         }
-        if (request.getStartSec() != null) {
-            existingTask.setStartSec(request.getStartSec());
-        }
-        if (request.getEndSec() != null) {
-            existingTask.setEndSec(request.getEndSec());
-        }
-        if (request.getWordLimit() != null) {
-            existingTask.setWordLimit(request.getWordLimit());
-        }
-        if (request.getTimeLimitSec() != null) {
-            existingTask.setTimeLimitSec(request.getTimeLimitSec());
-        }
-        if (request.getMaterialId() != null) {
-            existingTask.setMaterialId(request.getMaterialId());
-        }
+
+        applyDefaults(existingTask);
 
         return listeningTaskRepository.save(existingTask);
     }
@@ -111,5 +109,51 @@ public class ListeningTaskService {
             return listeningTaskRepository.findAll();
         }
        return listeningTaskRepository.findByMaterialId(materialId);
+    }
+
+    public ListeningTask updateTaskAudioWithJob(UUID materialId, UUID taskId, UUID jobId) {
+        ListeningTask task = listeningTaskRepository.findById(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Listening task not found with id: " + taskId));
+        if (task.getMaterialId() != null && materialId != null && !task.getMaterialId().equals(materialId)) {
+            throw new EntityNotFoundException("Task does not belong to material: " + materialId);
+        }
+        var jobOpt = audioJobService.getJob(jobId);
+        var job = jobOpt.orElseThrow(() -> new EntityNotFoundException("Audio job not found with id: " + jobId));
+        if (job.getAudioUrl() != null && !job.getAudioUrl().isBlank()) {
+            task.setAudioUrl(job.getAudioUrl());
+            task.setStatus(ListeningTaskStatus.READY);
+        }
+        if (job.getLanguageCode() != null) {
+            task.setLanguage(job.getLanguageCode());
+        }
+        return listeningTaskRepository.save(task);
+    }
+
+    public ListeningTask updateTaskAudioDirect(UUID materialId, UUID taskId, String audioUrl, ListeningVoiceConfigRequest voiceReq, String language) {
+        ListeningTask task = listeningTaskRepository.findById(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Listening task not found with id: " + taskId));
+        if (task.getMaterialId() != null && materialId != null && !task.getMaterialId().equals(materialId)) {
+            throw new EntityNotFoundException("Task does not belong to material: " + materialId);
+        }
+        if (audioUrl != null) {
+            task.setAudioUrl(audioUrl);
+            if (!audioUrl.isBlank()) {
+                task.setStatus(ListeningTaskStatus.READY);
+            }
+        }
+        if (language != null) {
+            task.setLanguage(language);
+        }
+
+        return listeningTaskRepository.save(task);
+    }
+
+    private void applyDefaults(ListeningTask task) {
+        if (task.getTargetWords() == null) {
+            task.setTargetWords(new ArrayList<>());
+        }
+        if (task.getStatus() == null) {
+            task.setStatus(ListeningTaskStatus.DRAFT);
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.mytutorplatform.lessonsservice.controller;
 
 import com.mytutorplatform.lessonsservice.model.request.TranscriptGenerateRequest;
+import com.mytutorplatform.lessonsservice.model.request.TranscriptManualCreateRequest;
 import com.mytutorplatform.lessonsservice.model.request.TranscriptUpdateRequest;
 import com.mytutorplatform.lessonsservice.model.request.ValidateCoverageRequest;
 import com.mytutorplatform.lessonsservice.model.response.TranscriptResponse;
@@ -35,6 +36,15 @@ public class ListeningTranscriptController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/transcripts/manual")
+    public ResponseEntity<TranscriptResponse> createManual(
+            @RequestBody TranscriptManualCreateRequest request,
+            @RequestParam UUID teacherId
+    ) {
+        TranscriptResponse response = listeningTranscriptService.createManual(request, teacherId);
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/transcripts/{transcriptId}")
     public ResponseEntity<TranscriptResponse> update(
             @PathVariable UUID transcriptId,
@@ -47,10 +57,9 @@ public class ListeningTranscriptController {
 
     @GetMapping("/transcripts/{transcriptId}")
     public ResponseEntity<TranscriptResponse> get(
-            @PathVariable UUID transcriptId,
-            @RequestParam UUID teacherId
+            @PathVariable UUID transcriptId
     ) {
-        TranscriptResponse response = listeningTranscriptService.get(transcriptId, teacherId);
+        TranscriptResponse response = listeningTranscriptService.get(transcriptId);
         return ResponseEntity.ok(response);
     }
 
