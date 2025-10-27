@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "lessons")
+@Table(name = "lessons", indexes = {
+        @Index(name = "idx_lessons_student_teacher_date", columnList = "studentId,tutorId,dateTime DESC")
+})
 @Data
 public class Lesson {
 

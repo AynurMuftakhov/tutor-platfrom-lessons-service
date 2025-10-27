@@ -162,14 +162,36 @@ public class LessonService {
         return lessonRepository.save(existingLesson);
     }
 
-    public void deleteLesson(UUID id) {
+    @Transactional
+    public void deleteLesson(UUID id, boolean deleteSeries) {
         Lesson lesson = getLessonById(id);
 
-        if (lesson.getStatus() == LessonStatus.COMPLETED) {
-            throw new IllegalStateException("Cannot delete a completed lesson");
+        if (!deleteSeries) {
+            lessonRepository.deleteById(id);
+            return;
         }
 
-        lessonRepository.deleteById(id);
+        RecurringLessonSeries series = lesson.getSeries();
+        if (series == null) {
+            lessonRepository.deleteById(id);
+            return;
+        }
+
+        // Delete only future lessons in the series (keep past lessons regardless of status)
+        List<Lesson> seriesLessons = lessonRepository.findAllBySeries(series);
+        OffsetDateTime now = OffsetDateTime.now();
+        List<Lesson> futureLessons = seriesLessons.stream()
+                .filter(l -> l.getDateTime() != null && l.getDateTime().isAfter(now))
+                .toList();
+
+        if (!futureLessons.isEmpty()) {
+            lessonRepository.deleteAll(futureLessons);
+        }
+
+        // If no lessons remain in the series after deletion, remove the series record
+        if (futureLessons.size() == seriesLessons.size()) {
+            recurringLessonSeriesRepository.delete(series);
+        }
     }
 
     private static StartEndDate getStartEndDate(OffsetDateTime date, OffsetDateTime startTime, OffsetDateTime endTime) {

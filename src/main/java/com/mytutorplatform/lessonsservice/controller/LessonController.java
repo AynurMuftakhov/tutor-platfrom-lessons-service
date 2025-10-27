@@ -84,8 +84,9 @@ public class LessonController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteLesson(@PathVariable UUID id) {
-        lessonService.deleteLesson(id);
+    public ResponseEntity<Void> deleteLesson(@PathVariable UUID id,
+                                             @RequestParam(name = "deleteSeries", required = false, defaultValue = "false") boolean deleteSeries) {
+        lessonService.deleteLesson(id, deleteSeries);
         return ResponseEntity.noContent().build();
     }
 
