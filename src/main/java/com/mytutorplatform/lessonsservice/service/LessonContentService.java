@@ -46,9 +46,6 @@ public class LessonContentService {
 
     public LessonContent update(UUID id, LessonContent patch) {
         LessonContent existing = getById(id);
-        if (existing.getStatus() == LessonContentStatus.PUBLISHED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot update PUBLISHED content");
-        }
         // allow updates for title, tags, coverImageUrl, layout, content
         if (patch.getTitle() != null) existing.setTitle(patch.getTitle());
         if (patch.getTags() != null) existing.setTags(patch.getTags());
