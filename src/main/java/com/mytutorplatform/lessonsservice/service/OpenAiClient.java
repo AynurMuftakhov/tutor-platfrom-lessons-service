@@ -1,5 +1,7 @@
 package com.mytutorplatform.lessonsservice.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ import java.util.Map;
 public class OpenAiClient {
 
     private final WebClient.Builder webClientBuilder;
+    private final ObjectMapper objectMapper;
 
     @Value("${openai.api.url:https://api.openai.com/v1}")
     private String url;
@@ -42,19 +45,39 @@ public class OpenAiClient {
     private long retryBackoffMs;
 
     public String generateTranscript(TranscriptPromptPayload payload, String requestId) {
+        List<Map<String, Object>> messages = List.of(
+                Map.of("role", "system", "content", payload.systemMessage()),
+                Map.of("role", "user", "content", payload.userMessage())
+        );
+        return generateText(messages, 0.7, null, payload.seed(), requestId);
+    }
+
+    public String generateText(List<Map<String, Object>> messages,
+                               Double temperature,
+                               Integer maxTokens,
+                               Integer seed,
+                               String requestId) {
+        return callOpenAi(messages, temperature, maxTokens, seed, requestId);
+    }
+
+    private String callOpenAi(List<Map<String, Object>> messages,
+                              Double temperature,
+                              Integer maxTokens,
+                              Integer seed,
+                              String requestId) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("OpenAI API key is not configured");
         }
 
         Map<String, Object> body = new HashMap<>();
         body.put("model", model);
-        body.put("messages", List.of(
-                Map.of("role", "system", "content", payload.systemMessage()),
-                Map.of("role", "user", "content", payload.userMessage())
-        ));
-        body.put("temperature", 0.7);
-        if (payload.seed() != null) {
-            body.put("seed", payload.seed());
+        body.put("messages", messages);
+        body.put("temperature", temperature != null ? temperature : 0.7);
+        if (maxTokens != null) {
+            body.put("max_tokens", maxTokens);
+        }
+        if (seed != null) {
+            body.put("seed", seed);
         }
 
         WebClient client = webClientBuilder
@@ -76,22 +99,30 @@ public class OpenAiClient {
             throw new IllegalStateException("Empty response from OpenAI");
         }
 
-        // naive JSON parse to extract first message content
-        try {
-            // Avoid adding extra deps: simple string extraction
-            int idxChoices = json.indexOf("\"choices\"");
-            if (idxChoices < 0) throw new IllegalStateException("Invalid OpenAI response: no choices");
-            int idxContent = json.indexOf("\"content\"", idxChoices);
-            if (idxContent < 0) throw new IllegalStateException("Invalid OpenAI response: no content");
-            int idxColon = json.indexOf(":", idxContent);
-            int idxQuoteStart = json.indexOf('"', idxColon + 1);
-            int idxQuoteEnd = json.indexOf('"', idxQuoteStart + 1);
-            if (idxQuoteStart < 0 || idxQuoteEnd < 0) throw new IllegalStateException("Invalid OpenAI response content");
-            return json.substring(idxQuoteStart + 1, idxQuoteEnd);
-        } catch (Exception e) {
-            log.warn("Fallback to full JSON when parsing content failed: {}", e.getMessage());
-            return json; // let service decide
+        String content = extractContent(json);
+        if (content != null && !content.isBlank()) {
+            return content;
         }
+
+        log.warn("OpenAI response missing content, returning raw JSON [{}]", requestId);
+        return json; // let service decide
+    }
+
+    private String extractContent(String json) {
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            JsonNode choices = root.path("choices");
+            if (choices.isArray() && !choices.isEmpty()) {
+                JsonNode message = choices.get(0).path("message");
+                JsonNode content = message.path("content");
+                if (!content.isMissingNode()) {
+                    return content.asText();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse OpenAI response: {}", e.getMessage());
+        }
+        return null;
     }
 
     @Builder
