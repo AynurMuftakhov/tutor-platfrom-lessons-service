@@ -28,7 +28,7 @@ public class LessonNotesController {
         try {
             Optional<LessonNote> note = notesService.get(lessonId);
             if (note.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+                return ResponseEntity.status(HttpStatus.OK).build();
             }
             LessonNote n = note.get();
             return ResponseEntity.ok(Map.of(
@@ -42,7 +42,7 @@ public class LessonNotesController {
             log.warn("Forbidden get note for lesson {} by {}", lessonId, userId);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (jakarta.persistence.EntityNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.OK).build();
         } catch (Exception e) {
             log.error("Error getting note", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

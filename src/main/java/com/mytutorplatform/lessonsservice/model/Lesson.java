@@ -61,6 +61,16 @@ public class Lesson {
     @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LessonAttachment> attachments;
 
+    // Ensure lesson materials are automatically removed when a lesson is deleted
+    @OneToMany(mappedBy = "lesson", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @JsonIgnore
+    private List<LessonMaterial> materials;
+
+    // Ensure lesson content links are automatically removed when a lesson is deleted
+    @OneToMany(mappedBy = "lesson", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @JsonIgnore
+    private List<LessonContentLink> contentLinks;
+
     private List<UUID> taskIds;
 
     @ManyToOne(fetch = FetchType.LAZY)
