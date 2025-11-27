@@ -1,6 +1,7 @@
 package com.mytutorplatform.lessonsservice.controller;
 
 import com.mytutorplatform.lessonsservice.model.LessonNote;
+import com.mytutorplatform.lessonsservice.model.response.LessonNoteResponse;
 import com.mytutorplatform.lessonsservice.service.LessonNotesService;
 import com.mytutorplatform.lessonsservice.service.LessonNotesService.PagedResult;
 import com.mytutorplatform.lessonsservice.service.LessonNotesService.UpsertResult;
@@ -31,13 +32,7 @@ public class LessonNotesController {
                 return ResponseEntity.status(HttpStatus.OK).build();
             }
             LessonNote n = note.get();
-            return ResponseEntity.ok(Map.of(
-                    "lessonId", n.getLessonId(),
-                    "content", n.getContent(),
-                    "format", n.getFormat(),
-                    "updatedAt", n.getUpdatedAt(),
-                    "updatedBy", n.getUpdatedBy()
-            ));
+            return ResponseEntity.ok(Map.of("note", LessonNoteResponse.from(n)));
         } catch (LessonNotesService.ForbiddenException e) {
             log.warn("Forbidden get note for lesson {} by {}", lessonId, userId);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -64,13 +59,7 @@ public class LessonNotesController {
                 return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
             }
             LessonNote n = result.note;
-            Map<String, Object> payload = Map.of(
-                    "lessonId", n.getLessonId(),
-                    "content", n.getContent(),
-                    "format", n.getFormat(),
-                    "updatedAt", n.getUpdatedAt(),
-                    "updatedBy", n.getUpdatedBy()
-            );
+            Map<String, Object> payload = Map.of("note", LessonNoteResponse.from(n));
             if (result.kind == UpsertResult.Kind.CREATED) {
                 return ResponseEntity.status(HttpStatus.CREATED).body(payload);
             } else {
