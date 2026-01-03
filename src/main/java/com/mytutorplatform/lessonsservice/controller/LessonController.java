@@ -4,14 +4,17 @@ import com.mytutorplatform.lessonsservice.model.LessonStatus;
 import com.mytutorplatform.lessonsservice.model.TutorStatistics;
 import com.mytutorplatform.lessonsservice.model.request.CreateLessonRequest;
 import com.mytutorplatform.lessonsservice.model.request.UpdateLessonRequest;
+import com.mytutorplatform.lessonsservice.model.response.LessonBillingFeedItem;
 import com.mytutorplatform.lessonsservice.model.response.LessonLight;
 import com.mytutorplatform.lessonsservice.service.LessonService;
 import com.mytutorplatform.lessonsservice.model.Lesson;
 import com.mytutorplatform.lessonsservice.service.StatisticsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -94,5 +97,17 @@ public class LessonController {
             @RequestParam(required = false) UUID studentId,
             @RequestParam(required = false) UUID tutorId) {
         return ResponseEntity.ok(lessonService.getLessonCountsByMonth(year, month, studentId, tutorId));
+    }
+
+    @GetMapping("/billing-feed")
+    public List<LessonBillingFeedItem> getBillingFeed(
+            @RequestParam UUID tutorId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) List<LessonStatus> status) {
+        List<LessonStatus> statuses = status != null && !status.isEmpty()
+                ? status
+                : List.of(LessonStatus.COMPLETED, LessonStatus.IN_PROGRESS, LessonStatus.RESCHEDULED);
+        return lessonService.getBillingFeed(tutorId, from, to, statuses);
     }
 }

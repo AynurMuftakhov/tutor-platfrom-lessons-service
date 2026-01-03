@@ -7,6 +7,7 @@ import com.mytutorplatform.lessonsservice.model.RecurringLessonSeries;
 import com.mytutorplatform.lessonsservice.model.request.CreateLessonRequest;
 import com.mytutorplatform.lessonsservice.model.request.UpdateLessonRequest;
 import com.mytutorplatform.lessonsservice.model.response.LessonLight;
+import com.mytutorplatform.lessonsservice.model.response.LessonBillingFeedItem;
 import com.mytutorplatform.lessonsservice.repository.LessonRepository;
 import com.mytutorplatform.lessonsservice.repository.RecurringLessonSeriesRepository;
 import com.mytutorplatform.lessonsservice.repository.specifications.LessonsSpecificationsBuilder;
@@ -251,5 +252,32 @@ public class LessonService {
         }
 
         return result;
+    }
+
+    public List<LessonBillingFeedItem> getBillingFeed(UUID tutorId, LocalDate fromDate, LocalDate toDate, List<LessonStatus> statuses) {
+        OffsetDateTime from = fromDate.atStartOfDay().atOffset(ZoneOffset.UTC);
+        OffsetDateTime to = toDate.plusDays(1).atStartOfDay().minusNanos(1).atOffset(ZoneOffset.UTC);
+
+        Specification<Lesson> spec = LessonsSpecificationsBuilder.lessonsByParams(
+                tutorId,
+                null,
+                statuses,
+                from,
+                to,
+                null
+        );
+        List<Lesson> lessons = lessonRepository.findAll(spec);
+        return lessons.stream().map(lesson -> LessonBillingFeedItem.builder()
+                .lessonId(lesson.getId())
+                .tutorId(lesson.getTutorId())
+                .studentId(lesson.getStudentId())
+                .status(lesson.getStatus())
+                .startTime(lesson.getDateTime())
+                .durationMinutes(lesson.getDuration())
+                .completedAt(lesson.getUpdatedAt() != null ? lesson.getUpdatedAt().atOffset(ZoneOffset.UTC) : null)
+                .priceOverride(null)
+                .quantity(java.math.BigDecimal.ONE)
+                .currency(null)
+                .build()).toList();
     }
 }
