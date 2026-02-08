@@ -274,7 +274,7 @@ public class LessonService {
                 .status(lesson.getStatus())
                 .startTime(lesson.getDateTime())
                 .durationMinutes(lesson.getDuration())
-                .completedAt(lesson.getUpdatedAt() != null ? lesson.getUpdatedAt().atOffset(ZoneOffset.UTC) : null)
+                .completedAt(lesson.getDateTime())
                 .priceOverride(null)
                 .quantity(java.math.BigDecimal.ONE)
                 .currency(null)

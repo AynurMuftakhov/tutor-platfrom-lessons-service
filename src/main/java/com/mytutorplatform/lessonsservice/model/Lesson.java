@@ -13,7 +13,11 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "lessons", indexes = {
-        @Index(name = "idx_lessons_student_teacher_date", columnList = "studentId,tutorId,dateTime DESC")
+        @Index(name = "idx_lessons_student_teacher_date", columnList = "studentId,tutorId,dateTime DESC"),
+        @Index(name = "idx_lessons_tutor_status_datetime", columnList = "tutorId,status,dateTime"),
+        @Index(name = "idx_lessons_student_status_datetime", columnList = "studentId,status,dateTime"),
+        @Index(name = "idx_lessons_tutor_student_status_datetime", columnList = "tutorId,studentId,status,dateTime"),
+        @Index(name = "idx_lessons_tutor_datetime", columnList = "tutorId,dateTime")
 })
 @Data
 public class Lesson {

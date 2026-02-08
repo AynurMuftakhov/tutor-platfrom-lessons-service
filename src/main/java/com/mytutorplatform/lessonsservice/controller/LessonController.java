@@ -107,7 +107,7 @@ public class LessonController {
             @RequestParam(required = false) List<LessonStatus> status) {
         List<LessonStatus> statuses = status != null && !status.isEmpty()
                 ? status
-                : List.of(LessonStatus.COMPLETED, LessonStatus.IN_PROGRESS, LessonStatus.RESCHEDULED);
+                : List.of(LessonStatus.COMPLETED);
         return lessonService.getBillingFeed(tutorId, from, to, statuses);
     }
 }
