@@ -14,5 +14,7 @@ import java.util.UUID;
 public class MaterialFolderTreeDto {
     private UUID id;
     private String name;
+    private int materialCount;
+    private int totalMaterialCount;
     private List<MaterialFolderTreeDto> children = new ArrayList<>();
 }

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,16 +27,46 @@ public class MaterialService {
     private final ListeningTaskRepository listeningTaskRepository;
 
     @Transactional(readOnly = true)
-    public Page<Material> findMaterials(UUID folderId, String search, String type, List<String> tags, int page, int size) {
+    public Page<Material> findMaterials(
+            UUID folderId,
+            String search,
+            String type,
+            List<String> tags,
+            Boolean needsOrganization,
+            String sortBy,
+            String sortDir,
+            int page,
+            int size
+    ) {
         Specification<Material> spec = new MaterialSpecificationsBuilder()
                 .withFolderId(folderId)
                 .withSearch(search)
                 .withType(type)
                 .withTags(tags)
+                .withNeedsOrganization(needsOrganization)
                 .build();
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, buildSort(sortBy, sortDir));
         return repository.findAll(spec, pageable);
+    }
+
+    private Sort buildSort(String sortBy, String sortDir) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return Sort.unsorted();
+        }
+
+        String normalizedField = switch (sortBy.toLowerCase()) {
+            case "title" -> "title";
+            case "type" -> "type";
+            default -> null;
+        };
+
+        if (normalizedField == null) {
+            return Sort.unsorted();
+        }
+
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return Sort.by(direction, normalizedField).and(Sort.by(Sort.Direction.ASC, "id"));
     }
 
     @Transactional(readOnly = true)

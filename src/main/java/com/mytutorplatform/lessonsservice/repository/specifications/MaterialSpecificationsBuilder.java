@@ -45,6 +45,17 @@ public class MaterialSpecificationsBuilder {
         return this;
     }
 
+    public MaterialSpecificationsBuilder withNeedsOrganization(Boolean needsOrganization) {
+        if (Boolean.TRUE.equals(needsOrganization)) {
+            specifications.add((root, query, criteriaBuilder) ->
+                    criteriaBuilder.or(
+                            criteriaBuilder.isNull(root.get("folderId")),
+                            criteriaBuilder.isEmpty(root.get("tags"))
+                    ));
+        }
+        return this;
+    }
+
     public Specification<Material> build() {
         if (specifications.isEmpty()) {
             return null;

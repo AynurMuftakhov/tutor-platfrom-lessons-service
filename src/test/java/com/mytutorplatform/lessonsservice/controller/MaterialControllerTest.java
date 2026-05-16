@@ -9,6 +9,8 @@ import com.mytutorplatform.lessonsservice.model.request.GrammarScoreRequest;
 import com.mytutorplatform.lessonsservice.model.response.GapResultDto;
 import com.mytutorplatform.lessonsservice.model.response.GrammarScoreResponse;
 import com.mytutorplatform.lessonsservice.model.response.ItemScoreDto;
+import com.mytutorplatform.lessonsservice.model.response.ListeningTaskDTO;
+import com.mytutorplatform.lessonsservice.mapper.ListeningTaskMapper;
 import com.mytutorplatform.lessonsservice.service.GrammarItemService;
 import com.mytutorplatform.lessonsservice.service.GrammarScoringService;
 import com.mytutorplatform.lessonsservice.service.ListeningTaskService;
@@ -26,6 +28,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -47,6 +50,9 @@ public class MaterialControllerTest {
 
     @MockBean
     private GrammarScoringService grammarScoringService;
+
+    @MockBean
+    private ListeningTaskMapper listeningTaskMapper;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -72,7 +78,7 @@ public class MaterialControllerTest {
         PageImpl<Material> page = new PageImpl<>(materials);
 
         // Mock service method
-        when(materialService.findMaterials(any(), any(), any(), any(), anyInt(), anyInt()))
+        when(materialService.findMaterials(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(page);
 
         // Perform request and verify response
@@ -83,6 +89,33 @@ public class MaterialControllerTest {
                 .andExpect(jsonPath("$.content.length()").value(2))
                 .andExpect(jsonPath("$.content[0].title").value("Test Material 1"))
                 .andExpect(jsonPath("$.content[1].title").value("Test Material 2"));
+    }
+
+    @Test
+    public void testGetMaterialsWithNeedsOrganizationAndSorting() throws Exception {
+        PageImpl<Material> page = new PageImpl<>(List.of());
+        when(materialService.findMaterials(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(page);
+
+        mockMvc.perform(get("/api/materials")
+                        .param("needsOrganization", "true")
+                        .param("sortBy", "title")
+                        .param("sortDir", "desc")
+                        .param("page", "1")
+                        .param("size", "20"))
+                .andExpect(status().isOk());
+
+        verify(materialService).findMaterials(
+                eq((UUID) null),
+                eq((String) null),
+                eq((String) null),
+                eq((List<String>) null),
+                eq(true),
+                eq("title"),
+                eq("desc"),
+                eq(1),
+                eq(20)
+        );
     }
 
     @Test
@@ -190,9 +223,18 @@ public class MaterialControllerTest {
         task2.setMaterialId(materialId);
 
         List<ListeningTask> tasks = Arrays.asList(task1, task2);
+        ListeningTaskDTO dto1 = new ListeningTaskDTO();
+        dto1.setId(task1.getId());
+        dto1.setTitle(task1.getTitle());
+        dto1.setMaterialId(materialId);
+        ListeningTaskDTO dto2 = new ListeningTaskDTO();
+        dto2.setId(task2.getId());
+        dto2.setTitle(task2.getTitle());
+        dto2.setMaterialId(materialId);
 
         // Mock service method
         when(materialService.getTasksForMaterial(materialId)).thenReturn(tasks);
+        when(listeningTaskMapper.mapList(tasks)).thenReturn(Arrays.asList(dto1, dto2));
 
         // Perform request and verify response
         mockMvc.perform(get("/api/materials/{id}/tasks", materialId))
@@ -217,9 +259,16 @@ public class MaterialControllerTest {
         createdTask.setStartSec(0);
         createdTask.setEndSec(60);
         createdTask.setMaterialId(materialId);
+        ListeningTaskDTO createdTaskDto = new ListeningTaskDTO();
+        createdTaskDto.setId(createdTask.getId());
+        createdTaskDto.setTitle(createdTask.getTitle());
+        createdTaskDto.setStartSec(createdTask.getStartSec());
+        createdTaskDto.setEndSec(createdTask.getEndSec());
+        createdTaskDto.setMaterialId(createdTask.getMaterialId());
 
         // Mock service method
         when(listeningTaskService.createListeningTask(any(CreateListeningTaskRequest.class))).thenReturn(createdTask);
+        when(listeningTaskMapper.map(createdTask)).thenReturn(createdTaskDto);
 
         // Perform request and verify response
         mockMvc.perform(post("/api/materials/{id}/tasks", materialId)

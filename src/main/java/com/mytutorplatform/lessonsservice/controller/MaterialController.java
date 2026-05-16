@@ -42,9 +42,12 @@ public class MaterialController {
             @RequestParam(required = false, defaultValue = "10") int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) List<String> tags
+            @RequestParam(required = false) List<String> tags,
+            @RequestParam(required = false, defaultValue = "false") Boolean needsOrganization,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false, defaultValue = "asc") String sortDir
     ) {
-        return service.findMaterials(folderId, search, type, tags, page, size);
+        return service.findMaterials(folderId, search, type, tags, needsOrganization, sortBy, sortDir, page, size);
     }
 
     @GetMapping("/{id}")

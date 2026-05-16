@@ -15,4 +15,7 @@ public interface MaterialRepository extends JpaRepository<Material, UUID>, JpaSp
 
     @Query("SELECT DISTINCT t FROM Material m JOIN m.tags t")
     List<String> findAllTags();
+
+    @Query("SELECT m.folderId, COUNT(m) FROM Material m WHERE m.folderId IS NOT NULL GROUP BY m.folderId")
+    List<Object[]> countMaterialsByFolderId();
 }

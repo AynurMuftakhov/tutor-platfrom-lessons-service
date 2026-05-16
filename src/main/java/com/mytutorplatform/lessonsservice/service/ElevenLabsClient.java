@@ -1,5 +1,7 @@
 package com.mytutorplatform.lessonsservice.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mytutorplatform.lessonsservice.model.request.VoiceSettings;
 import lombok.Builder;
@@ -10,10 +12,12 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 
@@ -21,6 +25,14 @@ import java.util.*;
 @Component
 @RequiredArgsConstructor
 public class ElevenLabsClient {
+
+    private static final List<String> CONFIGURED_VOICE_IDS = List.of(
+            "uju3wxzG5OhpWcoi3SMy",
+            "EST9Ui6982FZPSi7gCHi",
+            "nzFihrBIvB34imQBuxub",
+            "DODLEQrClDo8wCz460ld",
+            "auq43ws1oslv0tO4BDa7"
+    );
 
     private final ObjectMapper objectMapper;
 
@@ -30,6 +42,8 @@ public class ElevenLabsClient {
     private String apiKey;
     @Value("${elevenlabs.model:eleven_multilingual_v2}")
     private String defaultModel;
+    @Value("${elevenlabs.defaultVoiceId:}")
+    private String defaultVoiceId;
     @Value("${elevenlabs.outputFormat:mp3_44100_128}")
     private String defaultOutputFormat;
     @Value("${elevenlabs.timeoutSec:120}")
@@ -126,7 +140,19 @@ public class ElevenLabsClient {
         if (voicesCache != null && !voicesCache.isExpired()) {
             return voicesCache.voices;
         }
-        String url = baseUrl + "/v2/voices";
+        int attempts = Math.max(1, maxRetries + 1);
+        List<String> voiceIds = configuredVoiceIds();
+        if (voiceIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<VoiceInfo> fetchedVoices = fetchVoices(voicesByIdsUrl(voiceIds), attempts);
+        List<VoiceInfo> voices = orderVoicesByConfiguredIds(fetchedVoices, voiceIds);
+        logMissingConfiguredVoices(voiceIds, voices);
+        return voices.isEmpty() ? List.of() : cacheVoices(voices);
+    }
+
+    private List<VoiceInfo> fetchVoices(String url, int attempts) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .timeout(Duration.ofSeconds(Math.min(timeoutSec, 20)))
@@ -134,15 +160,12 @@ public class ElevenLabsClient {
                 .GET()
                 .build();
 
-        int attempts = Math.max(1, maxRetries + 1);
         for (int i = 1; i <= attempts; i++) {
             try {
                 HttpResponse<String> response = client().send(request, HttpResponse.BodyHandlers.ofString());
                 int status = response.statusCode();
                 if (status >= 200 && status < 300) {
-                    List<VoiceInfo> voices = parseVoices(response.body());
-                    this.voicesCache = new CachedVoicesCache(voices, System.currentTimeMillis());
-                    return voices;
+                    return parseVoicesPage(response.body()).voices();
                 }
                 String errText = response.body();
                 log.warn("ElevenLabs voices listing failed status={} body={}", status, errText);
@@ -185,46 +208,107 @@ public class ElevenLabsClient {
         }
     }
 
-    private List<VoiceInfo> parseVoices(String json) {
-        // Very naive JSON parsing to avoid adding libs: look for patterns
-        // Expected structure: { "voices": [ {"voice_id":"...","name":"...","preview_url":"..." ...}, ... ] }
-        if (json == null || json.isBlank()) return List.of();
+    private String voicesByIdsUrl(List<String> voiceIds) {
+        StringBuilder url = new StringBuilder(baseUrl)
+                .append("/v2/voices?page_size=")
+                .append(voiceIds.size())
+                .append("&include_total_count=false");
+        for (String voiceId : voiceIds) {
+            url.append("&voice_ids=")
+                    .append(URLEncoder.encode(voiceId, StandardCharsets.UTF_8));
+        }
+        return url.toString();
+    }
+
+    List<String> configuredVoiceIds() {
+        LinkedHashSet<String> voiceIds = new LinkedHashSet<>(CONFIGURED_VOICE_IDS);
+        if (defaultVoiceId != null && !defaultVoiceId.isBlank()) {
+            voiceIds.add(defaultVoiceId.trim());
+        }
+        return List.copyOf(voiceIds);
+    }
+
+    List<VoiceInfo> orderVoicesByConfiguredIds(List<VoiceInfo> voices, List<String> voiceIds) {
+        if (voices == null || voices.isEmpty() || voiceIds == null || voiceIds.isEmpty()) {
+            return List.of();
+        }
+        Map<String, VoiceInfo> voicesById = new HashMap<>();
+        voices.stream()
+                .filter(voice -> voice != null && voice.voiceId() != null)
+                .forEach(voice -> voicesById.putIfAbsent(voice.voiceId(), voice));
+
+        return voiceIds.stream()
+                .map(voicesById::get)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private void logMissingConfiguredVoices(List<String> voiceIds, List<VoiceInfo> voices) {
+        Set<String> returnedVoiceIds = new HashSet<>();
+        voices.forEach(voice -> returnedVoiceIds.add(voice.voiceId()));
+        List<String> missing = voiceIds.stream()
+                .filter(voiceId -> !returnedVoiceIds.contains(voiceId))
+                .toList();
+        if (!missing.isEmpty()) {
+            log.warn("ElevenLabs did not return configured voices: {}", missing);
+        }
+    }
+
+    private List<VoiceInfo> cacheVoices(List<VoiceInfo> voices) {
+        this.voicesCache = new CachedVoicesCache(voices, System.currentTimeMillis());
+        return voices;
+    }
+
+    List<VoiceInfo> parseVoices(String json) {
+        return parseVoicesPage(json).voices();
+    }
+
+    private VoicesPage parseVoicesPage(String json) {
+        if (json == null || json.isBlank()) return new VoicesPage(List.of(), false, null);
         List<VoiceInfo> result = new ArrayList<>();
         try {
-            int idx = json.indexOf("\"voices\"");
-            if (idx < 0) return List.of();
-            int arrStart = json.indexOf('[', idx);
-            int arrEnd = json.indexOf(']', arrStart);
-            if (arrStart < 0 || arrEnd < 0) return List.of();
-            String arr = json.substring(arrStart + 1, arrEnd);
-            String[] items = arr.split("\\},\\s*\\{");
-            for (String raw : items) {
-                String block = raw;
-                if (!block.startsWith("{")) block = "{" + block;
-                if (!block.endsWith("}")) block = block + "}";
-                String voiceId = extract(block, "voice_id");
-                String name = extract(block, "name");
-                String preview = extract(block, "preview_url");
-                result.add(new VoiceInfo(voiceId, name, preview, Map.of()));
+            JsonNode root = objectMapper.readTree(json);
+            JsonNode voices = root.path("voices");
+            if (voices.isArray()) {
+                for (JsonNode voice : voices) {
+                    String voiceId = textOrNull(voice, "voice_id");
+                    if (voiceId == null || voiceId.isBlank()) {
+                        log.debug("Skipping ElevenLabs voice without voice_id: {}", voice);
+                        continue;
+                    }
+                    String name = textOrNull(voice, "name");
+                    String preview = textOrNull(voice, "preview_url");
+                    Map<String, Object> settings = objectMapOrEmpty(voice.path("settings"));
+                    result.add(new VoiceInfo(voiceId, name, preview, settings));
+                }
             }
+            return new VoicesPage(
+                    result,
+                    root.path("has_more").asBoolean(false),
+                    textOrNull(root, "next_page_token")
+            );
         } catch (Exception e) {
             log.warn("Failed to parse voices: {}", e.getMessage());
         }
-        return result;
+        return new VoicesPage(result, false, null);
     }
 
-    private String extract(String json, String key) {
-        int idx = json.indexOf("\"" + key + "\"");
-        if (idx < 0) return null;
-        int colon = json.indexOf(':', idx);
-        int q1 = json.indexOf('"', colon + 1);
-        int q2 = json.indexOf('"', q1 + 1);
-        if (q1 < 0 || q2 < 0) return null;
-        return json.substring(q1 + 1, q2);
+    private String textOrNull(JsonNode node, String fieldName) {
+        JsonNode value = node.path(fieldName);
+        return value.isMissingNode() || value.isNull() ? null : value.asText();
+    }
+
+    private Map<String, Object> objectMapOrEmpty(JsonNode node) {
+        if (node == null || !node.isObject()) {
+            return Map.of();
+        }
+        return objectMapper.convertValue(node, new TypeReference<>() {});
     }
 
     @Builder
     public record VoiceInfo(String voiceId, String name, String previewUrl, Map<String, Object> settings) {}
+
+    private record VoicesPage(List<VoiceInfo> voices, boolean hasMore, String nextPageToken) {}
 
     private static class CachedVoicesCache {
         final List<VoiceInfo> voices;

@@ -1,5 +1,7 @@
 package com.mytutorplatform.lessonsservice.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
@@ -20,6 +23,7 @@ import java.util.stream.Collectors;
 public class VocabularyClient {
 
     private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
 
     @Value("${vocabulary.baseUrl:http://localhost:8085}")
     private String baseUrl;
@@ -30,11 +34,15 @@ public class VocabularyClient {
     public List<VocabWord> getWordsByIds(List<UUID> ids) {
         if (CollectionUtils.isEmpty(ids)) return List.of();
         String joined = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
-        String url = baseUrl + wordsPath + "?ids=" + joined;
+        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl + wordsPath)
+                .queryParam("ids", joined)
+                .queryParam("size", ids.size())
+                .build()
+                .encode()
+                .toUri();
         try {
-            ResponseEntity<VocabWord[]> response = restTemplate.getForEntity(URI.create(url), VocabWord[].class);
-            VocabWord[] body = response.getBody();
-            if (body == null) return List.of();
+            ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
+            List<VocabWord> body = readWords(response.getBody());
             // deduplicate by id and validate no duplicates from service
             Map<UUID, VocabWord> byId = new LinkedHashMap<>();
             for (VocabWord v : body) {
@@ -49,6 +57,19 @@ public class VocabularyClient {
             log.error("Failed to resolve vocabulary words: {}", e.getMessage(), e);
             throw new IllegalArgumentException("Unable to resolve vocabulary words");
         }
+    }
+
+    private List<VocabWord> readWords(String body) throws Exception {
+        if (body == null || body.isBlank()) return List.of();
+
+        JsonNode root = objectMapper.readTree(body);
+        JsonNode wordsNode = root.isArray() ? root : root.path("content");
+        if (!wordsNode.isArray()) {
+            throw new IllegalArgumentException("Vocabulary response does not contain an array or page content");
+        }
+
+        VocabWord[] words = objectMapper.treeToValue(wordsNode, VocabWord[].class);
+        return words == null ? List.of() : Arrays.asList(words);
     }
 
     @Data

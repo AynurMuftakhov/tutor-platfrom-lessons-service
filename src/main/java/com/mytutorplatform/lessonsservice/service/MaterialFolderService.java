@@ -5,6 +5,7 @@ import com.mytutorplatform.lessonsservice.model.response.CreateMaterialFolderReq
 import com.mytutorplatform.lessonsservice.model.response.MaterialFolderDTO;
 import com.mytutorplatform.lessonsservice.model.response.MaterialFolderTreeDto;
 import com.mytutorplatform.lessonsservice.repository.MaterialFolderRepository;
+import com.mytutorplatform.lessonsservice.repository.MaterialRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class MaterialFolderService {
 
     private final MaterialFolderRepository repo;
     private final MaterialService materialService;
+    private final MaterialRepository materialRepository;
 
     public MaterialFolderDTO create(CreateMaterialFolderRequest req) {
         MaterialFolder parent = null;
@@ -70,10 +72,17 @@ public class MaterialFolderService {
     @Transactional(readOnly = true)
     public List<MaterialFolderTreeDto> getTree() {
         List<MaterialFolder> all = repo.findAll();
+        Map<UUID, Integer> directMaterialCount = getDirectMaterialCounts();
         Map<UUID, MaterialFolderTreeDto> map = new HashMap<>();
         all.forEach(f -> map.put(
                 f.getId(),
-                new MaterialFolderTreeDto(f.getId(), f.getName(), new ArrayList<>())
+                new MaterialFolderTreeDto(
+                        f.getId(),
+                        f.getName(),
+                        directMaterialCount.getOrDefault(f.getId(), 0),
+                        0,
+                        new ArrayList<>()
+                )
         ));
 
         List<MaterialFolderTreeDto> roots = new ArrayList<>();
@@ -85,6 +94,27 @@ public class MaterialFolderService {
                 map.get(f.getParent().getId()).getChildren().add(dto);
             }
         });
+        roots.forEach(this::populateTotalMaterialCount);
         return roots;
+    }
+
+    private Map<UUID, Integer> getDirectMaterialCounts() {
+        List<Object[]> rows = materialRepository.countMaterialsByFolderId();
+        Map<UUID, Integer> counts = new HashMap<>();
+        for (Object[] row : rows) {
+            UUID folderId = (UUID) row[0];
+            Number count = (Number) row[1];
+            counts.put(folderId, count.intValue());
+        }
+        return counts;
+    }
+
+    private int populateTotalMaterialCount(MaterialFolderTreeDto node) {
+        int childrenTotal = node.getChildren().stream()
+                .mapToInt(this::populateTotalMaterialCount)
+                .sum();
+        int total = node.getMaterialCount() + childrenTotal;
+        node.setTotalMaterialCount(total);
+        return total;
     }
 }
